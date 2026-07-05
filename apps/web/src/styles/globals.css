@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --color-ink: 5 6 10;
+  --color-panel: rgba(17, 20, 31, 0.72);
+  --color-line: rgba(255, 255, 255, 0.09);
+  --color-muted: 144 150 170;
+  --color-brand: 139 92 246;
+  --color-cyan: 34 211 238;
+  --color-mint: 52 211 153;
+  --color-coral: 251 113 133;
+  --color-amber: 251 191 36;
+  --page-text: #f7f7fb;
+  --page-background:
+    radial-gradient(circle at 10% 0%, rgba(34, 211, 238, 0.11), transparent 32rem),
+    radial-gradient(circle at 85% 10%, rgba(139, 92, 246, 0.16), transparent 34rem),
+    linear-gradient(135deg, #05060a 0%, #080a12 45%, #0b0f19 100%);
+  --glass-background: rgba(16, 19, 30, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 24px 70px rgba(0, 0, 0, 0.26);
+  background: rgb(var(--color-ink));
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root.theme-light {
+  color-scheme: light;
+  --color-ink: 214 222 233;
+  --color-panel: rgba(204, 214, 226, 0.84);
+  --color-line: rgba(43, 57, 80, 0.18);
+  --color-muted: 82 94 115;
+  --color-brand: 91 55 168;
+  --color-cyan: 8 112 142;
+  --color-mint: 4 125 92;
+  --color-coral: 190 31 67;
+  --color-amber: 146 76 12;
+  --page-text: #1c2638;
+  --page-background:
+    radial-gradient(circle at 12% 0%, rgba(8, 112, 142, 0.07), transparent 30rem),
+    radial-gradient(circle at 88% 8%, rgba(91, 55, 168, 0.07), transparent 32rem),
+    linear-gradient(135deg, #d8e0eb 0%, #c9d4e2 48%, #dce3ec 100%);
+  --glass-background: rgba(210, 219, 231, 0.78);
+  --glass-border: rgba(43, 57, 80, 0.17);
+  --glass-shadow: 0 22px 58px rgba(43, 57, 80, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--page-background);
+  color: var(--page-text);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.32);
+}
+
+.glass {
+  border: 1px solid var(--glass-border);
+  background: var(--glass-background);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.theme-light .text-white {
+  color: #1c2638;
+}
+
+.theme-light .hover\:text-white:hover {
+  color: #1c2638;
+}
+
+.theme-light .bg-white {
+  background-color: #2b3950;
+}
+
+.theme-light .text-ink {
+  color: #e3eaf2;
+}
+
+.theme-light .bg-white\/5,
+.theme-light .bg-white\/\[0\.025\],
+.theme-light .bg-white\/\[0\.03\],
+.theme-light .bg-white\/\[0\.035\],
+.theme-light .bg-white\/\[0\.04\],
+.theme-light .bg-white\/\[0\.045\],
+.theme-light .bg-white\/\[0\.05\],
+.theme-light .bg-white\/\[0\.06\],
+.theme-light .bg-white\/\[0\.07\],
+.theme-light .bg-white\/\[0\.08\],
+.theme-light .bg-white\/10 {
+  background-color: rgba(43, 57, 80, 0.075);
+}
+
+.theme-light .hover\:bg-white\/\[0\.06\]:hover,
+.theme-light .hover\:bg-white\/\[0\.07\]:hover,
+.theme-light .hover\:bg-white\/8:hover,
+.theme-light .hover\:bg-white\/10:hover {
+  background-color: rgba(43, 57, 80, 0.12);
+}
+
+.theme-light .bg-ink\/70 {
+  background-color: rgba(202, 212, 225, 0.84);
+}
+
+.theme-light input,
+.theme-light select,
+.theme-light textarea {
+  background-color: rgba(194, 205, 219, 0.86);
+  color: #1c2638;
+}
+
+.theme-light .shadow-glow {
+  box-shadow: 0 0 26px rgba(43, 57, 80, 0.12);
+}
+
+.theme-light .shadow-panel {
+  box-shadow: 0 18px 42px rgba(43, 57, 80, 0.12);
+}

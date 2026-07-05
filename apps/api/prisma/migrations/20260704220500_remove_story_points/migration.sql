@@ -1,0 +1,1 @@
+ALTER TABLE "WorkItem" DROP COLUMN IF EXISTS "storyPoints";

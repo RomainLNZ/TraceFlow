@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  SCRUM_MASTER
+  PRODUCT_OWNER
+  DEVELOPER
+  CLIENT
+  GUEST
+}
+
+enum WorkStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  TESTING
+  BLOCKED
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum WorkItemKind {
+  EPIC
+  STORY
+  FEATURE
+  TASK
+  BUG
+  HOTFIX
+}
+
+model User {
+  id                 String       @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String       @unique
+  passwordHash       String
+  phone              String?
+  title              String?
+  department         String?
+  skills             String[]     @default([])
+  biography          String?
+  availability       String?
+  avatarUrl          String?
+  locale             String       @default("fr-FR")
+  timezone           String       @default("Europe/Paris")
+  role               Role         @default(DEVELOPER)
+  emailVerifiedAt    DateTime?
+  notificationPrefs  Json         @default("{}")
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  ownedProjects      Project[]    @relation("ProjectOwner")
+  assignedItems      WorkItem[]   @relation("Assignee")
+  refreshTokens      RefreshToken[]
+  comments           Comment[]
+  activityLogs       ActivityLog[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model Workspace {
+  id        String    @id @default(cuid())
+  name      String
+  logoUrl   String?
+  theme     Json      @default("{}")
+  teams     Team[]
+  projects  Project[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Team {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projects    Project[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Project {
+  id          String     @id @default(cuid())
+  name        String
+  description String
+  icon        String     @default("Sparkles")
+  color       String     @default("#8B5CF6")
+  tags        String[]   @default([])
+  progress    Int        @default(0)
+  status      String     @default("ACTIVE")
+  goals       String[]   @default([])
+  startsAt    DateTime?
+  endsAt      DateTime?
+  workspaceId String
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        Team?      @relation(fields: [teamId], references: [id])
+  ownerId     String
+  owner       User       @relation("ProjectOwner", fields: [ownerId], references: [id])
+  sprints     Sprint[]
+  workItems   WorkItem[]
+  documents   Document[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Sprint {
+  id        String     @id @default(cuid())
+  name      String
+  goal      String?
+  startsAt  DateTime
+  endsAt    DateTime
+  projectId String
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workItems WorkItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model WorkItem {
+  id               String       @id @default(cuid())
+  title            String
+  description      String?
+  kind             WorkItemKind @default(TASK)
+  status           WorkStatus   @default(BACKLOG)
+  priority         Priority     @default(MEDIUM)
+  estimatedMinutes Int?
+  spentMinutes     Int          @default(0)
+  tags             String[]     @default([])
+  dueDate          DateTime?
+  projectId        String
+  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprintId         String?
+  sprint           Sprint?      @relation(fields: [sprintId], references: [id])
+  assigneeId       String?
+  assignee         User?        @relation("Assignee", fields: [assigneeId], references: [id])
+  parentId         String?
+  parent           WorkItem?    @relation("SubTasks", fields: [parentId], references: [id])
+  children         WorkItem[]   @relation("SubTasks")
+  comments         Comment[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  body       String
+  workItemId String
+  workItem   WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  name      String
+  mimeType  String
+  size      Int
+  url       String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  entity    String
+  entityId  String
+  action    String
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
