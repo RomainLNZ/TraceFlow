@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Eye, EyeOff, KanbanSquare, Loader2, LockKeyhole, Mail, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router";
 import { z } from "zod";
@@ -119,6 +119,9 @@ export function AuthPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
+  const userInteractedWithLoginRef = useRef(false);
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -129,16 +132,36 @@ export function AuthPage() {
     }
   });
 
+  const emailField = loginForm.register("email");
+  const passwordField = loginForm.register("password");
+
   useEffect(() => {
-    const clearDemoCredentials = () => {
-      if (loginForm.getValues("email") === "admin@qualis.local") {
-        loginForm.reset({ email: "", password: "", rememberMe: true });
+    const clearInitialAutofill = () => {
+      if (userInteractedWithLoginRef.current) {
+        return;
       }
+
+      if (emailInputRef.current) {
+        emailInputRef.current.value = "";
+      }
+
+      if (passwordInputRef.current) {
+        passwordInputRef.current.value = "";
+      }
+
+      loginForm.reset({ email: "", password: "", rememberMe: true });
     };
 
-    clearDemoCredentials();
-    const timeout = window.setTimeout(clearDemoCredentials, 250);
-    return () => window.clearTimeout(timeout);
+    clearInitialAutofill();
+    const timeout = window.setTimeout(clearInitialAutofill, 250);
+    const interval = window.setInterval(clearInitialAutofill, 500);
+    window.addEventListener("focus", clearInitialAutofill);
+
+    return () => {
+      window.clearTimeout(timeout);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", clearInitialAutofill);
+    };
   }, [loginForm]);
 
   const registerForm = useForm<RegisterForm>({
@@ -229,12 +252,30 @@ export function AuthPage() {
           </div>
 
           {isLogin ? (
-            <form className="space-y-5" autoComplete="off" onSubmit={loginForm.handleSubmit(submitLogin)}>
+            <form
+              className="space-y-5"
+              autoComplete="off"
+              onFocusCapture={() => {
+                userInteractedWithLoginRef.current = true;
+              }}
+              onInputCapture={() => {
+                userInteractedWithLoginRef.current = true;
+              }}
+              onSubmit={loginForm.handleSubmit(submitLogin)}
+            >
               <label className="block space-y-2 text-sm">
                 <span className="font-medium">Email</span>
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
-                  <Input className="pl-10" autoComplete="off" {...loginForm.register("email")} />
+                  <Input
+                    className="pl-10"
+                    autoComplete="off"
+                    {...emailField}
+                    ref={(element) => {
+                      emailField.ref(element);
+                      emailInputRef.current = element;
+                    }}
+                  />
                 </div>
                 <FieldError message={loginForm.formState.errors.email ? "Email invalide." : undefined} />
               </label>
@@ -246,7 +287,11 @@ export function AuthPage() {
                     className="pl-10 pr-11"
                     type={showLoginPassword ? "text" : "password"}
                     autoComplete="new-password"
-                    {...loginForm.register("password")}
+                    {...passwordField}
+                    ref={(element) => {
+                      passwordField.ref(element);
+                      passwordInputRef.current = element;
+                    }}
                   />
                   <button
                     className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-muted transition hover:bg-white/[0.06] hover:text-white"
