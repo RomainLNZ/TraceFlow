@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Eye, EyeOff, KanbanSquare, Loader2, LockKeyhole, Mail, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router";
 import { z } from "zod";
@@ -129,6 +129,18 @@ export function AuthPage() {
     }
   });
 
+  useEffect(() => {
+    const clearDemoCredentials = () => {
+      if (loginForm.getValues("email") === "admin@qualis.local") {
+        loginForm.reset({ email: "", password: "", rememberMe: true });
+      }
+    };
+
+    clearDemoCredentials();
+    const timeout = window.setTimeout(clearDemoCredentials, 250);
+    return () => window.clearTimeout(timeout);
+  }, [loginForm]);
+
   const registerForm = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -217,12 +229,12 @@ export function AuthPage() {
           </div>
 
           {isLogin ? (
-            <form className="space-y-5" onSubmit={loginForm.handleSubmit(submitLogin)}>
+            <form className="space-y-5" autoComplete="off" onSubmit={loginForm.handleSubmit(submitLogin)}>
               <label className="block space-y-2 text-sm">
                 <span className="font-medium">Email</span>
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
-                  <Input className="pl-10" autoComplete="email" {...loginForm.register("email")} />
+                  <Input className="pl-10" autoComplete="off" {...loginForm.register("email")} />
                 </div>
                 <FieldError message={loginForm.formState.errors.email ? "Email invalide." : undefined} />
               </label>
@@ -233,7 +245,7 @@ export function AuthPage() {
                   <Input
                     className="pl-10 pr-11"
                     type={showLoginPassword ? "text" : "password"}
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     {...loginForm.register("password")}
                   />
                   <button
