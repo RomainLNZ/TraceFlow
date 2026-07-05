@@ -1,6 +1,6 @@
-# Qualis Agile
+# TraceFlow
 
-Qualis Agile is a premium Agile project management SaaS foundation inspired by the polish of Linear, Vercel, Notion, Raycast, ClickUp, Jira, Monday and Trello, without cloning any of them.
+TraceFlow is a premium Agile project management SaaS foundation inspired by the polish of Linear, Vercel, Notion, Raycast, ClickUp, Jira, Monday and Trello, without cloning any of them.
 
 The project is built incrementally. This first milestone establishes the architecture, design system, authentication surface, dashboards, kanban board, API structure, RBAC model and database schema.
 
