@@ -60,6 +60,20 @@ function FieldError({ message }: { message: string | undefined }) {
   return <p className="text-xs font-medium text-coral">{message}</p>;
 }
 
+function isAuthResponse(payload: unknown): payload is AuthResponse {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const candidate = payload as Partial<AuthResponse>;
+  return (
+    typeof candidate.accessToken === "string" &&
+    typeof candidate.refreshToken === "string" &&
+    !!candidate.user &&
+    typeof candidate.user === "object"
+  );
+}
+
 async function requestAuth(path: "login" | "register", body: unknown): Promise<AuthResponse> {
   let response: Response;
 
@@ -77,6 +91,10 @@ async function requestAuth(path: "login" | "register", body: unknown): Promise<A
 
   if (!response.ok) {
     throw new Error(getPayloadErrorMessage(payload, "La demande a échoué."));
+  }
+
+  if (!isAuthResponse(payload)) {
+    throw new Error("Réponse API invalide. Vérifie que l'application API est bien démarrée.");
   }
 
   return payload;
