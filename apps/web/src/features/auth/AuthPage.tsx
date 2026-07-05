@@ -105,8 +105,8 @@ export function AuthPage() {
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "admin@qualis.local",
-      password: "Admin123!",
+      email: "",
+      password: "",
       rememberMe: true
     }
   });

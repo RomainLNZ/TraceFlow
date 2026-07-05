@@ -50,14 +50,14 @@ async function readStore(): Promise<DevAuthStore> {
     const raw = await readFile(dataPath, "utf8");
     return JSON.parse(raw) as DevAuthStore;
   } catch {
-    const passwordHash = await bcrypt.hash("Admin123!", 12);
+    const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD ?? crypto.randomUUID(), 12);
     const store: DevAuthStore = {
       users: [
         {
           id: "local-admin",
           firstName: "Admin",
           lastName: "",
-          email: "admin@qualis.local",
+          email: process.env.ADMIN_EMAIL ?? "admin@qualis.local",
           passwordHash,
           role: Role.ADMIN,
           avatarUrl: null,
