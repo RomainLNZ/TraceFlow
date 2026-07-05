@@ -70,7 +70,7 @@ async function requestAuth(path: "login" | "register", body: unknown): Promise<A
       body: JSON.stringify(body)
     });
   } catch {
-    throw new Error("API indisponible. Lance le serveur API sur http://localhost:4000 puis reessaie.");
+    throw new Error("API indisponible. Verifie que l'application API est demarree puis reessaie.");
   }
 
   const payload = await response.json().catch(() => null);
