@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { EyeOff, GripVertical, Plus, RotateCcw, Settings2, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { Priority, WorkStatus } from "@qualis/types";
@@ -14,6 +14,7 @@ import { PriorityBadge, priorityLabels } from "@/lib/priority";
 import { ensureRealtimeConnected, realtime } from "@/lib/realtime";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+const BOARD_COLUMNS_STORAGE_KEY = "traceflow.kanban.columns";
 
 type Project = {
   id: string;
@@ -41,6 +42,12 @@ type UserSummary = {
   role: string;
 };
 
+type BoardColumn = {
+  id: WorkStatus;
+  title: string;
+  isVisible: boolean;
+};
+
 const priorities: Array<{ value: Priority; label: string }> = [
   { value: "LOW", label: priorityLabels.LOW },
   { value: "MEDIUM", label: priorityLabels.MEDIUM },
@@ -48,8 +55,36 @@ const priorities: Array<{ value: Priority; label: string }> = [
   { value: "URGENT", label: priorityLabels.URGENT }
 ];
 
+const defaultBoardColumns: BoardColumn[] = columns.map((column) => ({
+  ...column,
+  isVisible: true
+}));
+
 function formatUserName(user: Pick<UserSummary, "firstName" | "lastName">) {
   return `${user.firstName} ${user.lastName}`.trim();
+}
+
+function loadStoredBoardColumns() {
+  try {
+    const rawColumns = localStorage.getItem(BOARD_COLUMNS_STORAGE_KEY);
+    if (!rawColumns) {
+      return defaultBoardColumns;
+    }
+
+    const storedColumns = JSON.parse(rawColumns) as Partial<BoardColumn>[];
+    const mergedColumns = defaultBoardColumns.map((column) => {
+      const storedColumn = storedColumns.find((item) => item.id === column.id);
+      return {
+        ...column,
+        title: typeof storedColumn?.title === "string" && storedColumn.title.trim() ? storedColumn.title.trim() : column.title,
+        isVisible: typeof storedColumn?.isVisible === "boolean" ? storedColumn.isVisible : column.isVisible
+      };
+    });
+
+    return mergedColumns.some((column) => column.isVisible) ? mergedColumns : defaultBoardColumns;
+  } catch {
+    return defaultBoardColumns;
+  }
 }
 
 function TaskCard({
@@ -118,7 +153,7 @@ function DraggableTaskCard({ item, onDelete }: { item: WorkItem; onDelete?: ((it
   );
 }
 
-function KanbanColumn({ column, children }: { column: { id: WorkStatus; title: string }; children: React.ReactNode }) {
+function KanbanColumn({ column, children }: { column: BoardColumn; children: React.ReactNode }) {
   const { isOver, setNodeRef } = useDroppable({ id: column.id });
 
   return (
@@ -147,8 +182,11 @@ export function KanbanBoard() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [boardColumns, setBoardColumns] = useState<BoardColumn[]>(loadStoredBoardColumns);
+  const [isCustomizingBoard, setIsCustomizingBoard] = useState(false);
   const isAdmin = sessionUser?.role === "ADMIN";
 
+  const visibleColumns = useMemo(() => boardColumns.filter((column) => column.isVisible), [boardColumns]);
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId]
@@ -170,10 +208,57 @@ export function KanbanBoard() {
       item.assignee?.id === sessionUser.id || item.assignee?.email === sessionUser.email
     ));
   }, [isAdmin, items, sessionUser]);
+  const itemCountByStatus = useMemo(() => (
+    items.reduce<Record<WorkStatus, number>>((counts, item) => {
+      counts[item.status] = (counts[item.status] ?? 0) + 1;
+      return counts;
+    }, {} as Record<WorkStatus, number>)
+  ), [items]);
+  const defaultTaskStatus = visibleColumns[0]?.id ?? "BACKLOG";
 
   function authHeaders() {
     const token = getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  function persistBoardColumns(nextColumns: BoardColumn[]) {
+    setBoardColumns(nextColumns);
+    localStorage.setItem(BOARD_COLUMNS_STORAGE_KEY, JSON.stringify(nextColumns));
+  }
+
+  function renameColumn(columnId: WorkStatus, nextTitle: string) {
+    persistBoardColumns(boardColumns.map((column) => (
+      column.id === columnId ? { ...column, title: nextTitle } : column
+    )));
+  }
+
+  function toggleColumnVisibility(columnId: WorkStatus) {
+    const column = boardColumns.find((item) => item.id === columnId);
+    if (!column) {
+      return;
+    }
+
+    if (column.isVisible && (itemCountByStatus[columnId] ?? 0) > 0) {
+      setError("Vide d'abord cette étape avant de la masquer.");
+      return;
+    }
+
+    const nextColumns = boardColumns.map((item) => (
+      item.id === columnId ? { ...item, isVisible: !item.isVisible } : item
+    ));
+
+    if (!nextColumns.some((item) => item.isVisible)) {
+      setError("Le tableau doit garder au moins une étape visible.");
+      return;
+    }
+
+    setError(null);
+    persistBoardColumns(nextColumns);
+  }
+
+  function resetBoardColumns() {
+    setError(null);
+    persistBoardColumns(defaultBoardColumns);
   }
 
   async function loadProjects() {
@@ -257,7 +342,7 @@ export function KanbanBoard() {
           title,
           description,
           priority,
-          status: "BACKLOG",
+          status: defaultTaskStatus,
           assigneeId: assigneeId || null
         })
       });
@@ -352,7 +437,7 @@ export function KanbanBoard() {
 
     setActiveTaskId(null);
 
-    if (!nextStatus || !columns.some((column) => column.id === nextStatus)) {
+    if (!nextStatus || !visibleColumns.some((column) => column.id === nextStatus)) {
       return;
     }
 
@@ -410,6 +495,64 @@ export function KanbanBoard() {
       </div>
 
       {error && <Card className="border-coral/40 text-sm text-coral">{error}</Card>}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">Étapes visibles: {visibleColumns.map((column) => column.title || column.id).join(" · ")}</p>
+        <Button type="button" variant="ghost" onClick={() => setIsCustomizingBoard((current) => !current)}>
+          <Settings2 size={16} />
+          Personnaliser les étapes
+        </Button>
+      </div>
+
+      {isCustomizingBoard && (
+        <Card className="space-y-4">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-lg font-semibold">Étapes du tableau</h2>
+              <p className="mt-1 text-sm text-muted">Renomme les colonnes ou masque les étapes vides.</p>
+            </div>
+            <Button type="button" variant="quiet" onClick={resetBoardColumns}>
+              <RotateCcw size={16} />
+              Réinitialiser
+            </Button>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {boardColumns.map((column) => {
+              const itemCount = itemCountByStatus[column.id] ?? 0;
+              const canHide = !column.isVisible || itemCount === 0;
+              return (
+                <div key={column.id} className="flex items-center gap-3 rounded-lg border border-line bg-white/[0.035] p-3">
+                  <label className="min-w-0 flex-1 space-y-1 text-sm">
+                    <span className="text-xs uppercase tracking-wide text-muted">{column.id}</span>
+                    <Input
+                      value={column.title}
+                      onChange={(event) => renameColumn(column.id, event.target.value)}
+                      onBlur={(event) => {
+                        if (!event.target.value.trim()) {
+                          renameColumn(column.id, columns.find((item) => item.id === column.id)?.title ?? column.id);
+                        }
+                      }}
+                    />
+                  </label>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="rounded-md border border-line bg-white/[0.04] px-2 py-0.5 text-xs text-muted">{itemCount}</span>
+                    <button
+                      className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-white/[0.04] text-muted transition hover:bg-white/[0.08] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      type="button"
+                      title={column.isVisible ? "Masquer l'étape" : "Afficher l'étape"}
+                      aria-label={column.isVisible ? "Masquer l'étape" : "Afficher l'étape"}
+                      disabled={!canHide}
+                      onClick={() => toggleColumnVisibility(column.id)}
+                    >
+                      <EyeOff size={16} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card>
         <form className="grid gap-4 xl:grid-cols-[1.1fr_1.4fr_auto_auto_auto]" onSubmit={createTask}>
@@ -470,7 +613,7 @@ export function KanbanBoard() {
 
       <DndContext onDragStart={handleDragStart} onDragCancel={() => setActiveTaskId(null)} onDragEnd={handleDragEnd}>
         <div className="scrollbar-thin -mx-4 flex gap-4 overflow-x-auto px-4 pb-4">
-          {columns.map((column) => {
+          {visibleColumns.map((column) => {
             const columnItems = visibleItems.filter((item) => item.status === column.id);
             return (
               <KanbanColumn key={column.id} column={column}>
