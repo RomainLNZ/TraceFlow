@@ -138,8 +138,8 @@ async function getProjectOwnerId(req: Request) {
     data: {
       firstName: "Admin",
       lastName: "",
-      email: "admin@qualis.local",
-      passwordHash: "local-development-password",
+      email: process.env.ADMIN_EMAIL ?? `local-owner-${crypto.randomUUID()}@traceflow.local`,
+      passwordHash: crypto.randomUUID(),
       role: Role.ADMIN
     },
     select: { id: true }

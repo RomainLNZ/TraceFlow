@@ -36,6 +36,21 @@ const dataPath = path.join(dataDir, "dev-auth.json");
 const localFallbackDurationMs = 5 * 60_000;
 let localFallbackUntil = 0;
 
+function getLocalAdminCredentials() {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminEmail) {
+    throw new Error("ADMIN_EMAIL doit etre defini pour utiliser le mode local.");
+  }
+
+  if (!adminPassword || adminPassword.length < 12) {
+    throw new Error("ADMIN_PASSWORD doit etre defini avec au moins 12 caracteres pour utiliser le mode local.");
+  }
+
+  return { adminEmail, adminPassword };
+}
+
 function isDatabaseUnavailable(error: unknown) {
   return (
     error instanceof Error &&
@@ -50,14 +65,15 @@ async function readStore(): Promise<DevAuthStore> {
     const raw = await readFile(dataPath, "utf8");
     return JSON.parse(raw) as DevAuthStore;
   } catch {
-    const passwordHash = await bcrypt.hash(process.env.ADMIN_PASSWORD ?? crypto.randomUUID(), 12);
+    const { adminEmail, adminPassword } = getLocalAdminCredentials();
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
     const store: DevAuthStore = {
       users: [
         {
           id: "local-admin",
           firstName: "Admin",
           lastName: "",
-          email: process.env.ADMIN_EMAIL ?? "admin@qualis.local",
+          email: adminEmail,
           passwordHash,
           role: Role.ADMIN,
           avatarUrl: null,

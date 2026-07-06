@@ -26,12 +26,14 @@ docs/
   roadmap.md
 ```
 
-## Default Admin
+## Admin Account
 
-The seed script removes demo projects, teams, workspaces, tokens and non-admin users, then keeps or creates the default admin:
+The seed script removes demo projects, teams, workspaces, tokens and non-admin users, then keeps or creates the admin defined by the environment:
 
-- Email: `admin@qualis.local`
-- Password: `Admin123!`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD` with at least 12 characters
+
+Never deploy with a shared or documented admin password. Rotate the existing admin password after every public test or demo.
 
 ## Commands
 

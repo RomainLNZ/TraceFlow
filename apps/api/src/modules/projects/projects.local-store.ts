@@ -54,7 +54,7 @@ const defaultOwner: LocalUserSummary = {
   id: "local-admin",
   firstName: "Admin",
   lastName: "",
-  email: "admin@qualis.local",
+  email: process.env.ADMIN_EMAIL ?? "local-owner@traceflow.local",
   role: "ADMIN"
 };
 
