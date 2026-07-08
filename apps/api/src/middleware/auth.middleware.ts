@@ -48,3 +48,14 @@ export function requireAdmin(req: AuthenticatedRequest, res: Response, next: Nex
   req.auth = auth;
   return next();
 }
+
+export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const auth = readAuth(req);
+
+  if (!auth) {
+    return res.status(401).json({ message: "Authentification requise." });
+  }
+
+  req.auth = auth;
+  return next();
+}

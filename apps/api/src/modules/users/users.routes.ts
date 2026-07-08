@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { Router } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../middleware/async.middleware.js";
-import { type AuthenticatedRequest, requireAdmin } from "../../middleware/auth.middleware.js";
+import { type AuthenticatedRequest, requireAdmin, requireAuth } from "../../middleware/auth.middleware.js";
 import { localProjectsStore } from "../projects/projects.local-store.js";
 
 export const usersRouter = Router();
@@ -15,6 +15,7 @@ let localFallbackUntil = 0;
 
 function isDatabaseUnavailable(error: unknown) {
   return (
+    process.env.ALLOW_LOCAL_FALLBACK === "true" &&
     error instanceof Error &&
     (error.name === "PrismaClientInitializationError" || error.message.includes("Can't reach database server"))
   );
@@ -73,7 +74,7 @@ async function deleteLocalUser(userId: string) {
   await localProjectsStore.removeUserAssignments(userId);
 }
 
-usersRouter.get("/", asyncHandler(async (_req, res) => {
+usersRouter.get("/", requireAuth, asyncHandler(async (_req, res) => {
   if (Date.now() < localFallbackUntil) {
     return res.json({ data: await listLocalUsers() });
   }

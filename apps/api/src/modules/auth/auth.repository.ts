@@ -53,6 +53,7 @@ function getLocalAdminCredentials() {
 
 function isDatabaseUnavailable(error: unknown) {
   return (
+    process.env.ALLOW_LOCAL_FALLBACK === "true" &&
     error instanceof Error &&
     (error.name === "PrismaClientInitializationError" || error.message.includes("Can't reach database server"))
   );
@@ -118,6 +119,10 @@ async function canReachLocalDatabase() {
 }
 
 async function shouldUseLocalFallback() {
+  if (process.env.ALLOW_LOCAL_FALLBACK !== "true") {
+    return false;
+  }
+
   if (Date.now() < localFallbackUntil) {
     return true;
   }

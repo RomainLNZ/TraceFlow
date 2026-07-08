@@ -19,6 +19,7 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(24),
   ACCESS_TOKEN_TTL: z.string().default("30d"),
   REFRESH_TOKEN_TTL: z.string().default("30d"),
+  ALLOW_PUBLIC_REGISTRATION: z.coerce.boolean().default(false),
   CLIENT_ORIGIN: z.string().url().default("http://localhost:5173"),
   PORT: z.coerce.number().default(4000)
 });

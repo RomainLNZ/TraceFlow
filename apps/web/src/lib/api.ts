@@ -1,7 +1,14 @@
-import { clearSession } from "@/features/auth/session";
+import { clearSession, getAccessToken } from "@/features/auth/session";
 
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit) {
-  const response = await fetch(input, init);
+  const headers = new Headers(init?.headers);
+  const token = getAccessToken();
+
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(input, { ...init, headers });
 
   if (response.status === 401) {
     clearSession();

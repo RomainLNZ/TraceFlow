@@ -4,7 +4,7 @@ import { Priority, Role, WorkItemKind, WorkStatus } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { asyncHandler } from "../../middleware/async.middleware.js";
-import { readAuth, requireAdmin } from "../../middleware/auth.middleware.js";
+import { type AuthenticatedRequest, readAuth, requireAdmin, requireAuth } from "../../middleware/auth.middleware.js";
 import { localProjectsStore } from "./projects.local-store.js";
 
 export const projectsRouter = Router();
@@ -18,6 +18,7 @@ function getRouteParam(value: string | string[] | undefined): string {
 
 function isDatabaseUnavailable(error: unknown) {
   return (
+    process.env.ALLOW_LOCAL_FALLBACK === "true" &&
     error instanceof Error &&
     (error.name === "PrismaClientInitializationError" || error.message.includes("Can't reach database server"))
   );
@@ -116,7 +117,52 @@ const workItemSelect = {
 } as const;
 
 function getTokenUserId(req: Request) {
-  return readAuth(req)?.userId ?? null;
+  return (req as AuthenticatedRequest).auth?.userId ?? readAuth(req)?.userId ?? null;
+}
+
+function getRequiredAuth(req: Request) {
+  const auth = (req as AuthenticatedRequest).auth;
+  if (!auth) {
+    const error = new Error("Authentification requise.");
+    Object.assign(error, { status: 401 });
+    throw error;
+  }
+
+  return auth;
+}
+
+function isAdmin(req: Request) {
+  return getRequiredAuth(req).role === Role.ADMIN;
+}
+
+function projectAccessWhere(req: Request) {
+  const auth = getRequiredAuth(req);
+
+  if (auth.role === Role.ADMIN) {
+    return {};
+  }
+
+  return {
+    OR: [
+      { ownerId: auth.userId },
+      { workItems: { some: { assigneeId: auth.userId } } }
+    ]
+  };
+}
+
+function workItemAccessWhere(req: Request) {
+  const auth = getRequiredAuth(req);
+
+  if (auth.role === Role.ADMIN) {
+    return {};
+  }
+
+  return {
+    OR: [
+      { assigneeId: auth.userId },
+      { project: { ownerId: auth.userId } }
+    ]
+  };
 }
 
 async function getProjectOwnerId(req: Request) {
@@ -179,9 +225,12 @@ function emitWorkspaceChange(req: Request, event: "projects:changed" | "work-ite
   req.app.get("io")?.emit(event, payload);
 }
 
-projectsRouter.get("/", asyncHandler(async (_req, res) => {
+projectsRouter.use(requireAuth);
+
+projectsRouter.get("/", asyncHandler(async (req, res) => {
   const projects = await withLocalFallback(
     () => prisma.project.findMany({
+      where: projectAccessWhere(req),
       orderBy: { createdAt: "desc" },
       select: projectSelect
     }),
@@ -191,15 +240,17 @@ projectsRouter.get("/", asyncHandler(async (_req, res) => {
   res.json({ data: projects });
 }));
 
-projectsRouter.get("/overview", asyncHandler(async (_req, res) => {
+projectsRouter.get("/overview", asyncHandler(async (req, res) => {
   const data = await withLocalFallback(
     async () => {
       const [projects, tasks] = await Promise.all([
         prisma.project.findMany({
+          where: projectAccessWhere(req),
           orderBy: { createdAt: "desc" },
           select: projectSelect
         }),
         prisma.workItem.findMany({
+          where: workItemAccessWhere(req),
           orderBy: { createdAt: "desc" },
           select: workItemSelect
         })
@@ -241,7 +292,10 @@ projectsRouter.patch("/:projectId", asyncHandler(async (req, res) => {
   const projectId = getRouteParam(req.params.projectId);
   const project = await withLocalFallback(
     async () => {
-      const existingProject = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+      const existingProject = await prisma.project.findFirst({
+        where: { id: projectId, ...projectAccessWhere(req) },
+        select: { id: true }
+      });
 
       if (!existingProject) {
         const error = new Error("Projet introuvable.");
@@ -293,7 +347,7 @@ projectsRouter.get("/:projectId/work-items", asyncHandler(async (req, res) => {
   const projectId = getRouteParam(req.params.projectId);
   const items = await withLocalFallback(
     () => prisma.workItem.findMany({
-      where: { projectId },
+      where: { projectId, ...workItemAccessWhere(req) },
       orderBy: { createdAt: "desc" },
       select: workItemSelect
     }),
@@ -308,7 +362,10 @@ projectsRouter.post("/:projectId/work-items", asyncHandler(async (req, res) => {
   const projectId = getRouteParam(req.params.projectId);
   const item = await withLocalFallback(
     async () => {
-      const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } });
+      const project = await prisma.project.findFirst({
+        where: { id: projectId, ...projectAccessWhere(req) },
+        select: { id: true }
+      });
 
       if (!project) {
         const error = new Error("Projet introuvable.");
@@ -324,7 +381,7 @@ projectsRouter.post("/:projectId/work-items", asyncHandler(async (req, res) => {
           status: input.status,
           priority: input.priority,
           kind: input.kind,
-          assigneeId: input.assigneeId ?? null
+          assigneeId: isAdmin(req) ? input.assigneeId ?? null : getRequiredAuth(req).userId
         },
         select: workItemSelect
       });
@@ -347,7 +404,7 @@ projectsRouter.patch("/:projectId/work-items/:workItemId", asyncHandler(async (r
   const item = await withLocalFallback(
     async () => {
       const existingItem = await prisma.workItem.findFirst({
-        where: { id: workItemId, projectId },
+        where: { id: workItemId, projectId, ...workItemAccessWhere(req) },
         select: { id: true, projectId: true }
       });
 
@@ -365,7 +422,7 @@ projectsRouter.patch("/:projectId/work-items/:workItemId", asyncHandler(async (r
           ...(input.status !== undefined ? { status: input.status } : {}),
           ...(input.priority !== undefined ? { priority: input.priority } : {}),
           ...(input.kind !== undefined ? { kind: input.kind } : {}),
-          ...(input.assigneeId !== undefined ? { assigneeId: input.assigneeId ?? null } : {})
+          ...(isAdmin(req) && input.assigneeId !== undefined ? { assigneeId: input.assigneeId ?? null } : {})
         },
         select: workItemSelect
       });

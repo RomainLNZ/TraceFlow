@@ -1,8 +1,9 @@
 import { Router } from "express";
+import { requireAuth } from "../../middleware/auth.middleware.js";
 
 export const agileRouter = Router();
 
-agileRouter.get("/board", (_req, res) => {
+agileRouter.get("/board", requireAuth, (_req, res) => {
   res.json({
     columns: [
       { id: "BACKLOG", title: "Backlog" },
