@@ -1,4 +1,5 @@
 import type { Priority, WorkStatus } from "@qualis/types";
+import { apiFetch } from "@/lib/api";
 import { getPayloadErrorMessage } from "@/lib/errors";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
@@ -51,7 +52,7 @@ export const statusLabels: Record<WorkStatus, string> = {
 };
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+  const response = await apiFetch(`${API_BASE_URL}${path}`);
   const payload = await response.json();
 
   if (!response.ok) {

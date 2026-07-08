@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { Card } from "@/components/ui/Card";
 import { getAccessToken, getSessionUser } from "@/features/auth/session";
+import { apiFetch } from "@/lib/api";
 import { getPayloadErrorMessage, getRequestErrorMessage } from "@/lib/errors";
 import { PriorityBadge } from "@/lib/priority";
 import { ensureRealtimeConnected, realtime } from "@/lib/realtime";
@@ -45,7 +46,7 @@ export function AdminDashboard() {
   }
 
   async function loadUsers() {
-    const response = await fetch(`${API_BASE_URL}/api/users`);
+    const response = await apiFetch(`${API_BASE_URL}/api/users`);
     const payload = await response.json();
 
     if (!response.ok) {
@@ -111,7 +112,7 @@ export function AdminDashboard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/users/${user.id}`, {
         method: "DELETE",
         headers: authHeaders()
       });
@@ -141,7 +142,7 @@ export function AdminDashboard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${project.id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${project.id}`, {
         method: "DELETE",
         headers: authHeaders()
       });
@@ -170,7 +171,7 @@ export function AdminDashboard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${task.project.id}/work-items/${task.id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${task.project.id}/work-items/${task.id}`, {
         method: "DELETE",
         headers: authHeaders()
       });

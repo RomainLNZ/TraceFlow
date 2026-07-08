@@ -179,6 +179,12 @@ export function AuthPage() {
   const isSubmitting = loginForm.formState.isSubmitting || registerForm.formState.isSubmitting;
   const redirectTo = typeof location.state?.from?.pathname === "string" ? location.state.from.pathname : "/";
 
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get("expired") === "1") {
+      setMessage("Ta session a expiré. Reconnecte-toi pour continuer.");
+    }
+  }, [location.search]);
+
   async function submitLogin(values: LoginForm) {
     setError(null);
     setMessage(null);

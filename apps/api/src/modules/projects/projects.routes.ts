@@ -58,8 +58,8 @@ const taskSchema = z.object({
   assigneeId: z.string().nullable().optional()
 });
 
-const taskStatusSchema = z.object({
-  status: z.nativeEnum(WorkStatus)
+const taskUpdateSchema = taskSchema.partial().refine((value) => Object.keys(value).length > 0, {
+  message: "Aucune modification fournie."
 });
 
 const projectSelect = {
@@ -341,7 +341,7 @@ projectsRouter.post("/:projectId/work-items", asyncHandler(async (req, res) => {
 }));
 
 projectsRouter.patch("/:projectId/work-items/:workItemId", asyncHandler(async (req, res) => {
-  const input = taskStatusSchema.parse(req.body);
+  const input = taskUpdateSchema.parse(req.body);
   const projectId = getRouteParam(req.params.projectId);
   const workItemId = getRouteParam(req.params.workItemId);
   const item = await withLocalFallback(
@@ -359,14 +359,21 @@ projectsRouter.patch("/:projectId/work-items/:workItemId", asyncHandler(async (r
 
       const updatedItem = await prisma.workItem.update({
         where: { id: existingItem.id },
-        data: { status: input.status },
+        data: {
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.description !== undefined ? { description: input.description || null } : {}),
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.priority !== undefined ? { priority: input.priority } : {}),
+          ...(input.kind !== undefined ? { kind: input.kind } : {}),
+          ...(input.assigneeId !== undefined ? { assigneeId: input.assigneeId ?? null } : {})
+        },
         select: workItemSelect
       });
 
       await updateProjectProgress(existingItem.projectId);
       return updatedItem;
     },
-    () => localProjectsStore.updateWorkItemStatus(projectId, workItemId, input.status)
+    () => localProjectsStore.updateWorkItem(projectId, workItemId, input)
   );
 
   emitWorkspaceChange(req, "work-items:changed", { projectId, workItemId });

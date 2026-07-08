@@ -247,6 +247,17 @@ export const localProjectsStore = {
   },
 
   async updateWorkItemStatus(projectId: string, workItemId: string, status: WorkStatus) {
+    return this.updateWorkItem(projectId, workItemId, { status });
+  },
+
+  async updateWorkItem(projectId: string, workItemId: string, input: {
+    title?: string | undefined;
+    description?: string | undefined;
+    status?: WorkStatus | undefined;
+    priority?: Priority | undefined;
+    kind?: WorkItemKind | undefined;
+    assigneeId?: string | null | undefined;
+  }) {
     const state = await readState();
     const project = state.projects.find((item) => item.id === projectId);
     const workItem = state.workItems.find((item) => item.id === workItemId && item.projectId === projectId);
@@ -257,7 +268,30 @@ export const localProjectsStore = {
       throw error;
     }
 
-    workItem.status = status;
+    if (input.title !== undefined) {
+      workItem.title = input.title;
+    }
+
+    if (input.description !== undefined) {
+      workItem.description = input.description || null;
+    }
+
+    if (input.status !== undefined) {
+      workItem.status = input.status;
+    }
+
+    if (input.priority !== undefined) {
+      workItem.priority = input.priority;
+    }
+
+    if (input.kind !== undefined) {
+      workItem.kind = input.kind;
+    }
+
+    if (input.assigneeId !== undefined) {
+      workItem.assigneeId = input.assigneeId ?? null;
+    }
+
     updateProgress(state, projectId);
     await writeState(state);
 

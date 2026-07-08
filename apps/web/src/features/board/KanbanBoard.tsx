@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import { EyeOff, GripVertical, Plus, RotateCcw, Settings2, Trash2 } from "lucide-react";
+import { EyeOff, GripVertical, Pencil, Plus, RotateCcw, Save, Settings2, Trash2, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { Priority, WorkStatus } from "@qualis/types";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { getAccessToken, getSessionUser } from "@/features/auth/session";
+import { apiFetch } from "@/lib/api";
 import { getPayloadErrorMessage, getRequestErrorMessage } from "@/lib/errors";
 import { columns } from "@/lib/mock-data";
 import { PriorityBadge, priorityLabels } from "@/lib/priority";
@@ -91,11 +92,13 @@ function TaskCard({
   item,
   isDragging = false,
   isOverlay = false,
+  onEdit,
   onDelete
 }: {
   item: WorkItem;
   isDragging?: boolean;
   isOverlay?: boolean;
+  onEdit?: ((item: WorkItem) => void) | undefined;
   onDelete?: ((item: WorkItem) => void) | undefined;
 }) {
   return (
@@ -107,6 +110,21 @@ function TaskCard({
       <div className="mb-3 flex items-start justify-between gap-3">
         <p className="text-sm font-semibold leading-5">{item.title}</p>
         <div className="flex shrink-0 items-center gap-1">
+          {onEdit && !isOverlay && (
+            <button
+              className="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-white"
+              type="button"
+              title="Modifier la tache"
+              aria-label="Modifier la tache"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit(item);
+              }}
+            >
+              <Pencil size={14} />
+            </button>
+          )}
           {onDelete && !isOverlay && (
             <button
               className="grid h-7 w-7 place-items-center rounded-md text-coral transition hover:bg-coral/10"
@@ -140,7 +158,15 @@ function TaskCard({
   );
 }
 
-function DraggableTaskCard({ item, onDelete }: { item: WorkItem; onDelete?: ((item: WorkItem) => void) | undefined }) {
+function DraggableTaskCard({
+  item,
+  onEdit,
+  onDelete
+}: {
+  item: WorkItem;
+  onEdit?: ((item: WorkItem) => void) | undefined;
+  onDelete?: ((item: WorkItem) => void) | undefined;
+}) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
     data: { status: item.status }
@@ -148,7 +174,7 @@ function DraggableTaskCard({ item, onDelete }: { item: WorkItem; onDelete?: ((it
 
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}>
-      <TaskCard item={item} isDragging={isDragging} onDelete={onDelete} />
+      <TaskCard item={item} isDragging={isDragging} onEdit={onEdit} onDelete={onDelete} />
     </div>
   );
 }
@@ -180,8 +206,15 @@ export function KanbanBoard() {
   const [assigneeId, setAssigneeId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [editingTask, setEditingTask] = useState<WorkItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState<WorkStatus>("BACKLOG");
+  const [editPriority, setEditPriority] = useState<Priority>("MEDIUM");
+  const [editAssigneeId, setEditAssigneeId] = useState("");
   const [boardColumns, setBoardColumns] = useState<BoardColumn[]>(loadStoredBoardColumns);
   const [isCustomizingBoard, setIsCustomizingBoard] = useState(false);
   const isAdmin = sessionUser?.role === "ADMIN";
@@ -266,7 +299,7 @@ export function KanbanBoard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects`);
+      const response = await apiFetch(`${API_BASE_URL}/api/projects`);
       const payload = await response.json();
 
       if (!response.ok) {
@@ -285,7 +318,7 @@ export function KanbanBoard() {
 
   async function loadUsers() {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users`);
+      const response = await apiFetch(`${API_BASE_URL}/api/users`);
       const payload = await response.json();
 
       if (!response.ok) {
@@ -307,7 +340,7 @@ export function KanbanBoard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/work-items`);
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/work-items`);
       const payload = await response.json();
 
       if (!response.ok) {
@@ -332,7 +365,7 @@ export function KanbanBoard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${selectedProjectId}/work-items`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${selectedProjectId}/work-items`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -378,7 +411,7 @@ export function KanbanBoard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${selectedProjectId}/work-items/${itemId}`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${selectedProjectId}/work-items/${itemId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -401,6 +434,65 @@ export function KanbanBoard() {
     }
   }
 
+  function startEditingTask(item: WorkItem) {
+    setEditingTask(item);
+    setEditTitle(item.title);
+    setEditDescription(item.description ?? "");
+    setEditStatus(item.status);
+    setEditPriority(item.priority);
+    setEditAssigneeId(item.assignee?.id ?? "");
+    setError(null);
+  }
+
+  function cancelEditingTask() {
+    setEditingTask(null);
+    setEditTitle("");
+    setEditDescription("");
+    setEditStatus("BACKLOG");
+    setEditPriority("MEDIUM");
+    setEditAssigneeId("");
+  }
+
+  async function updateTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!editingTask) {
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setError(null);
+
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${editingTask.project.id}/work-items/${editingTask.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders()
+        },
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDescription,
+          status: editStatus,
+          priority: editPriority,
+          assigneeId: editAssigneeId || null
+        })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(getPayloadErrorMessage(payload, "Impossible de modifier la tâche."));
+      }
+
+      setItems((current) => current.map((item) => (item.id === editingTask.id ? payload.data : item)));
+      cancelEditingTask();
+    } catch (requestError) {
+      setError(getRequestErrorMessage(requestError, "Impossible de modifier la tâche."));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
   async function deleteTask(item: WorkItem) {
     const confirmed = window.confirm(`Supprimer la tache "${item.title}" ?`);
 
@@ -411,7 +503,7 @@ export function KanbanBoard() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${item.project.id}/work-items/${item.id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${item.project.id}/work-items/${item.id}`, {
         method: "DELETE",
         headers: authHeaders()
       });
@@ -422,6 +514,9 @@ export function KanbanBoard() {
       }
 
       setItems((current) => current.filter((currentItem) => currentItem.id !== item.id));
+      if (editingTask?.id === item.id) {
+        cancelEditingTask();
+      }
     } catch (requestError) {
       setError(getRequestErrorMessage(requestError, "Impossible de supprimer la tâche."));
     }
@@ -600,6 +695,76 @@ export function KanbanBoard() {
         </form>
       </Card>
 
+      {editingTask && (
+        <Card>
+          <form className="space-y-4" onSubmit={updateTask}>
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div>
+                <h2 className="text-lg font-semibold">Modifier la tâche</h2>
+                <p className="mt-1 text-sm text-muted">{editingTask.project.name}</p>
+              </div>
+              <Button className="h-9 px-3" type="button" variant="quiet" onClick={cancelEditingTask}>
+                <X size={16} />
+                Annuler
+              </Button>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_1.4fr_auto_auto_auto]">
+              <label className="block space-y-2 text-sm">
+                <span className="font-medium">Titre</span>
+                <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} required minLength={2} />
+              </label>
+              <label className="block space-y-2 text-sm">
+                <span className="font-medium">Description</span>
+                <Input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} />
+              </label>
+              <label className="block space-y-2 text-sm">
+                <span className="font-medium">Statut</span>
+                <select
+                  className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                  value={editStatus}
+                  onChange={(event) => setEditStatus(event.target.value as WorkStatus)}
+                >
+                  {boardColumns.map((column) => (
+                    <option key={column.id} value={column.id}>{column.title}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block space-y-2 text-sm">
+                <span className="font-medium">Priorité</span>
+                <select
+                  className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                  value={editPriority}
+                  onChange={(event) => setEditPriority(event.target.value as Priority)}
+                >
+                  {priorities.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block space-y-2 text-sm">
+                <span className="font-medium">Attribuée à</span>
+                <select
+                  className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                  value={editAssigneeId}
+                  onChange={(event) => setEditAssigneeId(event.target.value)}
+                >
+                  <option value="">Non attribuée</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id}>{formatUserName(user)}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isSavingEdit}>
+                <Save size={16} />
+                {isSavingEdit ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
       {!isLoading && projects.length === 0 && (
         <Card className="text-sm text-muted">Aucun projet disponible. Va dans Projets pour creer le premier projet.</Card>
       )}
@@ -621,7 +786,7 @@ export function KanbanBoard() {
                   <span className="rounded-md border border-line bg-white/[0.04] px-2 py-0.5 text-xs text-muted">{columnItems.length}</span>
                 </div>
                 {columnItems.map((item) => (
-                  <DraggableTaskCard key={item.id} item={item} onDelete={isAdmin ? deleteTask : undefined} />
+                  <DraggableTaskCard key={item.id} item={item} onEdit={startEditingTask} onDelete={isAdmin ? deleteTask : undefined} />
                 ))}
                 {columnItems.length === 0 && <Card className="p-4 text-sm text-muted">Aucune carte</Card>}
               </KanbanColumn>

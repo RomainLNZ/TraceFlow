@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { getAccessToken, getSessionUser } from "@/features/auth/session";
+import { apiFetch } from "@/lib/api";
 import { getPayloadErrorMessage, getRequestErrorMessage } from "@/lib/errors";
 import { ensureRealtimeConnected, realtime } from "@/lib/realtime";
 
@@ -40,7 +41,7 @@ export function ProjectsPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects`);
+      const response = await apiFetch(`${API_BASE_URL}/api/projects`);
       const payload = await response.json();
 
       if (!response.ok) {
@@ -61,7 +62,7 @@ export function ProjectsPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,7 +95,7 @@ export function ProjectsPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${project.id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${project.id}`, {
         method: "PATCH",
         headers: authHeaders()
       });
@@ -120,7 +121,7 @@ export function ProjectsPage() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/projects/${project.id}`, {
+      const response = await apiFetch(`${API_BASE_URL}/api/projects/${project.id}`, {
         method: "DELETE",
         headers: authHeaders()
       });
