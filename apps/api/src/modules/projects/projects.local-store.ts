@@ -36,6 +36,7 @@ type LocalWorkItem = {
   spentMinutes: number;
   dueDate: string | null;
   tags: string[];
+  checklist: Array<{ id: string; text: string; done: boolean }>;
   assigneeId?: string | null;
   createdAt: string;
 };
@@ -213,6 +214,7 @@ export const localProjectsStore = {
     priority: Priority;
     kind: WorkItemKind;
     assigneeId?: string | null | undefined;
+    checklist?: Array<{ id: string; text: string; done: boolean }> | undefined;
   }) {
     const state = await readState();
     const project = state.projects.find((item) => item.id === projectId);
@@ -235,6 +237,7 @@ export const localProjectsStore = {
       spentMinutes: 0,
       dueDate: null,
       tags: [],
+      checklist: input.checklist ?? [],
       assigneeId: input.assigneeId ?? null,
       createdAt: new Date().toISOString()
     };
@@ -257,6 +260,7 @@ export const localProjectsStore = {
     priority?: Priority | undefined;
     kind?: WorkItemKind | undefined;
     assigneeId?: string | null | undefined;
+    checklist?: Array<{ id: string; text: string; done: boolean }> | undefined;
   }) {
     const state = await readState();
     const project = state.projects.find((item) => item.id === projectId);
@@ -290,6 +294,10 @@ export const localProjectsStore = {
 
     if (input.assigneeId !== undefined) {
       workItem.assigneeId = input.assigneeId ?? null;
+    }
+
+    if (input.checklist !== undefined) {
+      workItem.checklist = input.checklist;
     }
 
     updateProgress(state, projectId);

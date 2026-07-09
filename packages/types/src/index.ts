@@ -45,6 +45,7 @@ export interface WorkItem {
   assignee?: UserSummary | null;
   dueDate?: string | null;
   tags: string[];
+  checklist?: Array<{ id: string; text: string; done: boolean }>;
 }
 
 export interface AuthResponse {

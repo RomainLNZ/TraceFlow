@@ -1,0 +1,1 @@
+ALTER TABLE "WorkItem" ADD COLUMN "checklist" JSONB NOT NULL DEFAULT '[]';

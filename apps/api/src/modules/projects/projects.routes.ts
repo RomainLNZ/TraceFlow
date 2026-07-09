@@ -56,7 +56,12 @@ const taskSchema = z.object({
   status: z.nativeEnum(WorkStatus).default(WorkStatus.BACKLOG),
   priority: z.nativeEnum(Priority).default(Priority.MEDIUM),
   kind: z.nativeEnum(WorkItemKind).default(WorkItemKind.TASK),
-  assigneeId: z.string().nullable().optional()
+  assigneeId: z.string().nullable().optional(),
+  checklist: z.array(z.object({
+    id: z.string().trim().min(1).max(80),
+    text: z.string().trim().min(1).max(180),
+    done: z.boolean()
+  })).max(80).optional()
 });
 
 const taskUpdateSchema = taskSchema.partial().refine((value) => Object.keys(value).length > 0, {
@@ -94,6 +99,7 @@ const workItemSelect = {
   spentMinutes: true,
   dueDate: true,
   tags: true,
+  checklist: true,
   createdAt: true,
   project: {
     select: {
@@ -381,6 +387,7 @@ projectsRouter.post("/:projectId/work-items", asyncHandler(async (req, res) => {
           status: input.status,
           priority: input.priority,
           kind: input.kind,
+          checklist: input.checklist ?? [],
           assigneeId: isAdmin(req) ? input.assigneeId ?? null : getRequiredAuth(req).userId
         },
         select: workItemSelect
@@ -422,6 +429,7 @@ projectsRouter.patch("/:projectId/work-items/:workItemId", asyncHandler(async (r
           ...(input.status !== undefined ? { status: input.status } : {}),
           ...(input.priority !== undefined ? { priority: input.priority } : {}),
           ...(input.kind !== undefined ? { kind: input.kind } : {}),
+          ...(input.checklist !== undefined ? { checklist: input.checklist } : {}),
           ...(isAdmin(req) && input.assigneeId !== undefined ? { assigneeId: input.assigneeId ?? null } : {})
         },
         select: workItemSelect

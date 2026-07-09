@@ -1,6 +1,6 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import { AlignLeft, EyeOff, GripVertical, Maximize2, Pencil, Plus, RotateCcw, Save, Settings2, Trash2, X } from "lucide-react";
+import { AlignLeft, CheckSquare, EyeOff, GripVertical, Pencil, Plus, RotateCcw, Save, Settings2, Trash2, X } from "lucide-react";
 import type { ButtonHTMLAttributes, FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { Priority, WorkStatus } from "@qualis/types";
@@ -32,7 +32,14 @@ type WorkItem = {
   kind: string;
   priority: Priority;
   tags: string[];
+  checklist?: ChecklistItem[];
   assignee?: UserSummary | null;
+};
+
+type ChecklistItem = {
+  id: string;
+  text: string;
+  done: boolean;
 };
 
 type UserSummary = {
@@ -64,6 +71,20 @@ const defaultBoardColumns: BoardColumn[] = columns.map((column) => ({
   ...column,
   isVisible: true
 }));
+
+function createChecklistId() {
+  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeChecklist(value: WorkItem["checklist"]) {
+  return Array.isArray(value)
+    ? value.filter((item) => item.text.trim()).map((item) => ({
+      id: item.id || createChecklistId(),
+      text: item.text.trim(),
+      done: item.done
+    }))
+    : [];
+}
 
 function formatUserName(user: Pick<UserSummary, "firstName" | "lastName">) {
   return `${user.firstName} ${user.lastName}`.trim();
@@ -97,7 +118,6 @@ function TaskCard({
   isDragging = false,
   isOverlay = false,
   dragHandleProps,
-  onOpen,
   onEdit,
   onDelete
 }: {
@@ -105,7 +125,6 @@ function TaskCard({
   isDragging?: boolean;
   isOverlay?: boolean;
   dragHandleProps?: DragHandleProps;
-  onOpen?: ((item: WorkItem) => void) | undefined;
   onEdit?: ((item: WorkItem) => void) | undefined;
   onDelete?: ((item: WorkItem) => void) | undefined;
 }) {
@@ -120,27 +139,12 @@ function TaskCard({
       <div className="mb-2 flex items-start justify-between gap-2">
         <p className="min-w-0 break-words text-sm font-semibold leading-5 text-white">{item.title}</p>
         <div className="flex shrink-0 items-center gap-1">
-          {onOpen && !isOverlay && (
-            <button
-              className="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-white"
-              type="button"
-              title="Ouvrir la tache"
-              aria-label="Ouvrir la tache"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpen(item);
-              }}
-            >
-              <Maximize2 size={14} />
-            </button>
-          )}
           {onEdit && !isOverlay && (
             <button
               className="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-white"
               type="button"
-              title="Modifier la tache"
-              aria-label="Modifier la tache"
+              title="Ouvrir et modifier la tache"
+              aria-label="Ouvrir et modifier la tache"
               onPointerDown={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation();
@@ -198,12 +202,10 @@ function TaskCard({
 
 function DraggableTaskCard({
   item,
-  onOpen,
   onEdit,
   onDelete
 }: {
   item: WorkItem;
-  onOpen?: ((item: WorkItem) => void) | undefined;
   onEdit?: ((item: WorkItem) => void) | undefined;
   onDelete?: ((item: WorkItem) => void) | undefined;
 }) {
@@ -218,7 +220,6 @@ function DraggableTaskCard({
         item={item}
         isDragging={isDragging}
         dragHandleProps={{ ...listeners, ...attributes, ref: setActivatorNodeRef }}
-        onOpen={onOpen}
         onEdit={onEdit}
         onDelete={onDelete}
       />
@@ -288,6 +289,7 @@ export function KanbanBoard() {
   const [editStatus, setEditStatus] = useState<WorkStatus>("BACKLOG");
   const [editPriority, setEditPriority] = useState<Priority>("MEDIUM");
   const [editAssigneeId, setEditAssigneeId] = useState("");
+  const [editChecklist, setEditChecklist] = useState<ChecklistItem[]>([]);
   const [boardColumns, setBoardColumns] = useState<BoardColumn[]>(loadStoredBoardColumns);
   const [isCustomizingBoard, setIsCustomizingBoard] = useState(false);
   const isAdmin = sessionUser?.role === "ADMIN";
@@ -530,6 +532,7 @@ export function KanbanBoard() {
     setEditStatus(item.status);
     setEditPriority(item.priority);
     setEditAssigneeId(item.assignee?.id ?? "");
+    setEditChecklist(normalizeChecklist(item.checklist));
     setError(null);
   }
 
@@ -540,6 +543,21 @@ export function KanbanBoard() {
     setEditStatus("BACKLOG");
     setEditPriority("MEDIUM");
     setEditAssigneeId("");
+    setEditChecklist([]);
+  }
+
+  function addChecklistItem() {
+    setEditChecklist((current) => [...current, { id: createChecklistId(), text: "", done: false }]);
+  }
+
+  function updateChecklistItem(itemId: string, nextValue: Partial<ChecklistItem>) {
+    setEditChecklist((current) => current.map((item) => (
+      item.id === itemId ? { ...item, ...nextValue } : item
+    )));
+  }
+
+  function removeChecklistItem(itemId: string) {
+    setEditChecklist((current) => current.filter((item) => item.id !== itemId));
   }
 
   async function updateTask(event: FormEvent<HTMLFormElement>) {
@@ -564,6 +582,7 @@ export function KanbanBoard() {
           description: editDescription,
           status: editStatus,
           priority: editPriority,
+          checklist: normalizeChecklist(editChecklist),
           assigneeId: editAssigneeId || null
         })
       });
@@ -833,7 +852,7 @@ export function KanbanBoard() {
                     Supprimer
                   </Button>
                 )}
-                <Button className="h-9 w-9 px-0" type="button" variant="ghost" onClick={cancelEditingTask} aria-label="Fermer la tache" title="Fermer la tache">
+                <Button className="h-9 w-9 border border-line bg-white/[0.08] px-0 hover:bg-white/[0.14]" type="button" variant="ghost" onClick={cancelEditingTask} aria-label="Fermer la tache" title="Fermer la tache">
                   <X size={18} />
                 </Button>
               </div>
@@ -869,6 +888,62 @@ export function KanbanBoard() {
                     onChange={(event) => setEditDescription(event.target.value)}
                     placeholder="Ajoute les détails utiles, le contexte ou les prochaines actions."
                   />
+                </section>
+
+                <section className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <CheckSquare className="text-muted" size={20} />
+                      <h2 className="text-base font-semibold">Checklist</h2>
+                    </div>
+                    <Button className="h-9 px-3" type="button" variant="quiet" onClick={addChecklistItem}>
+                      <Plus size={16} />
+                      Ajouter
+                    </Button>
+                  </div>
+
+                  {editChecklist.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-line bg-white/[0.025] p-4 text-sm text-muted">
+                      Ajoute les tests, contrôles ou actions à valider pour cette tâche.
+                    </div>
+                  )}
+
+                  {editChecklist.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                        <div
+                          className="h-full rounded-full bg-cyan transition-all"
+                          style={{ width: `${Math.round((editChecklist.filter((item) => item.done).length / editChecklist.length) * 100)}%` }}
+                        />
+                      </div>
+                      {editChecklist.map((item) => (
+                        <div key={item.id} className="flex items-center gap-2 rounded-lg border border-line bg-white/[0.035] p-2">
+                          <input
+                            className="h-4 w-4 shrink-0 accent-cyan"
+                            type="checkbox"
+                            checked={item.done}
+                            onChange={(event) => updateChecklistItem(item.id, { done: event.target.checked })}
+                            aria-label="Marquer l'élément comme fait"
+                          />
+                          <Input
+                            className={item.done ? "text-muted line-through" : ""}
+                            value={item.text}
+                            onChange={(event) => updateChecklistItem(item.id, { text: event.target.value })}
+                            placeholder="Ex: Tester la sécurité des accès"
+                          />
+                          <button
+                            className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted transition hover:bg-coral/10 hover:text-coral"
+                            type="button"
+                            title="Supprimer l'élément"
+                            aria-label="Supprimer l'élément"
+                            onClick={() => removeChecklistItem(item.id)}
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </section>
               </div>
 
@@ -934,7 +1009,6 @@ export function KanbanBoard() {
                   <DraggableTaskCard
                     key={item.id}
                     item={item}
-                    onOpen={startEditingTask}
                     onEdit={startEditingTask}
                     onDelete={isAdmin ? deleteTask : undefined}
                   />
