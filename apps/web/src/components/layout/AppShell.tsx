@@ -56,14 +56,26 @@ export function AppShell() {
           isSidebarCollapsed ? "w-20" : "w-64"
         )}
       >
-        <div className={cn("mb-8 flex items-center gap-3 px-2 pt-2", isSidebarCollapsed && "justify-center px-0")}>
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-white text-ink">
-            <KanbanSquare size={18} />
+        <div className={cn("mb-8 flex items-start gap-3 px-2 pt-2", isSidebarCollapsed && "flex-col items-center px-0")}>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-ink">
+              <KanbanSquare size={18} />
+            </div>
+            <div className={cn("min-w-0", isSidebarCollapsed && "hidden")}>
+              <p className="text-sm font-semibold">TraceFlow</p>
+              <p className="max-w-40 text-[11px] leading-4 text-muted">Transformez vos idées en projets maîtrisés.</p>
+            </div>
           </div>
-          <div className={cn(isSidebarCollapsed && "hidden")}>
-            <p className="text-sm font-semibold">TraceFlow</p>
-            <p className="max-w-40 text-[11px] leading-4 text-muted">Transformez vos idées en projets maîtrisés.</p>
-          </div>
+          <Button
+            variant="ghost"
+            className="h-9 w-9 shrink-0 px-0"
+            type="button"
+            onClick={() => setIsSidebarCollapsed((value) => !value)}
+            aria-label={isSidebarCollapsed ? "Ouvrir le menu" : "Fermer le menu"}
+            title={isSidebarCollapsed ? "Ouvrir le menu" : "Fermer le menu"}
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </Button>
         </div>
         <nav className="space-y-1">
           {visibleNav.map((item) => (
@@ -97,16 +109,6 @@ export function AppShell() {
             <div className="lg:hidden grid h-9 w-9 place-items-center rounded-lg bg-white text-ink">
               <KanbanSquare size={17} />
             </div>
-            <Button
-              variant="ghost"
-              className="hidden h-9 w-9 px-0 lg:inline-flex"
-              type="button"
-              onClick={() => setIsSidebarCollapsed((value) => !value)}
-              aria-label={isSidebarCollapsed ? "Ouvrir le menu" : "Fermer le menu"}
-              title={isSidebarCollapsed ? "Ouvrir le menu" : "Fermer le menu"}
-            >
-              {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-            </Button>
             <button className="hidden h-10 w-[min(28rem,42vw)] items-center gap-3 rounded-lg border border-line bg-white/[0.04] px-3 text-left text-sm text-muted transition hover:bg-white/[0.07] md:flex">
               <Command size={16} />
               Rechercher utilisateurs, taches, documents...
