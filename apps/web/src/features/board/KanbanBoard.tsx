@@ -179,13 +179,37 @@ function DraggableTaskCard({
   );
 }
 
-function KanbanColumn({ column, children }: { column: BoardColumn; children: React.ReactNode }) {
+function KanbanColumn({
+  column,
+  itemCount,
+  onAddTask,
+  children
+}: {
+  column: BoardColumn;
+  itemCount: number;
+  onAddTask: (status: WorkStatus) => void;
+  children: React.ReactNode;
+}) {
   const { isOver, setNodeRef } = useDroppable({ id: column.id });
 
   return (
-    <section key={column.id} ref={setNodeRef} className="w-[21rem] flex-none sm:w-[23rem]">
-      <div className="mb-3 flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold">{column.title}</h2>
+    <section key={column.id} ref={setNodeRef} className="w-[18.5rem] flex-none rounded-lg border border-line bg-white/[0.08] p-3 sm:w-[20rem]">
+      <div className="mb-3 flex items-center justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-semibold">{column.title}</h2>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <span className="rounded-md border border-line bg-white/[0.06] px-2 py-0.5 text-xs text-muted">{itemCount}</span>
+          <button
+            className="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-white"
+            type="button"
+            title="Ajouter une tache"
+            aria-label="Ajouter une tache"
+            onClick={() => onAddTask(column.id)}
+          >
+            <Plus size={15} />
+          </button>
+        </div>
       </div>
       <div className={`min-h-32 space-y-4 rounded-lg transition ${isOver ? "bg-cyan/10 ring-2 ring-cyan/30" : ""}`}>
         {children}
@@ -204,6 +228,8 @@ export function KanbanBoard() {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<Priority>("MEDIUM");
   const [assigneeId, setAssigneeId] = useState("");
+  const [createStatus, setCreateStatus] = useState<WorkStatus>("BACKLOG");
+  const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -294,6 +320,21 @@ export function KanbanBoard() {
     persistBoardColumns(defaultBoardColumns);
   }
 
+  function openCreateTask(status = defaultTaskStatus) {
+    setCreateStatus(status);
+    setIsCreatePanelOpen(true);
+    setError(null);
+  }
+
+  function closeCreateTask() {
+    setIsCreatePanelOpen(false);
+    setTitle("");
+    setDescription("");
+    setPriority("MEDIUM");
+    setAssigneeId("");
+    setCreateStatus(defaultTaskStatus);
+  }
+
   async function loadProjects() {
     setIsLoading(true);
     setError(null);
@@ -375,7 +416,7 @@ export function KanbanBoard() {
           title,
           description,
           priority,
-          status: defaultTaskStatus,
+          status: createStatus,
           assigneeId: assigneeId || null
         })
       });
@@ -390,6 +431,7 @@ export function KanbanBoard() {
       setDescription("");
       setPriority("MEDIUM");
       setAssigneeId("");
+      setIsCreatePanelOpen(false);
     } catch (requestError) {
       setError(getRequestErrorMessage(requestError, "Impossible de créer la tâche."));
     } finally {
@@ -567,37 +609,37 @@ export function KanbanBoard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <div>
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+        <div className="min-w-0">
           <p className="text-sm text-cyan">Projet</p>
-          <h1 className="mt-2 text-3xl font-semibold sm:text-5xl">Tableau Kanban</h1>
-          <p className="mt-3 max-w-2xl text-muted">Cree des taches, puis suis leur avancement par colonne.</p>
+          <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">Tableau Kanban</h1>
         </div>
-        <label className="block min-w-72 space-y-2 text-sm">
-          <span className="font-medium">Projet actif</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-white/[0.04] p-2">
           <select
-            className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+            className="h-9 min-w-52 rounded-md border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
             value={selectedProjectId}
             onChange={(event) => setSelectedProjectId(event.target.value)}
             disabled={isLoading || projects.length === 0}
+            aria-label="Projet actif"
+            title="Projet actif"
           >
             {projects.length === 0 && <option value="">Aucun projet</option>}
             {projects.map((project) => (
               <option key={project.id} value={project.id}>{project.name}</option>
             ))}
           </select>
-        </label>
+          <Button className="h-9 px-3" type="button" onClick={() => openCreateTask()} disabled={!selectedProjectId} title="Ajouter une tache">
+            <Plus size={16} />
+            <span className="hidden sm:inline">Tache</span>
+          </Button>
+          <Button className="h-9 px-3" type="button" variant="ghost" onClick={() => setIsCustomizingBoard((current) => !current)} title="Personnaliser les etapes">
+            <Settings2 size={16} />
+            <span className="hidden sm:inline">Etapes</span>
+          </Button>
+        </div>
       </div>
 
       {error && <Card className="border-coral/40 text-sm text-coral">{error}</Card>}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">Étapes visibles: {visibleColumns.map((column) => column.title || column.id).join(" · ")}</p>
-        <Button type="button" variant="ghost" onClick={() => setIsCustomizingBoard((current) => !current)}>
-          <Settings2 size={16} />
-          Personnaliser les étapes
-        </Button>
-      </div>
 
       {isCustomizingBoard && (
         <Card className="space-y-4">
@@ -649,8 +691,32 @@ export function KanbanBoard() {
         </Card>
       )}
 
-      <Card>
-        <form className="grid gap-4 xl:grid-cols-[1.1fr_1.4fr_auto_auto_auto]" onSubmit={createTask}>
+      {isCreatePanelOpen && (
+        <Card className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold">Nouvelle tache</h2>
+              <p className="mt-1 text-sm text-muted">Ajout dans {boardColumns.find((column) => column.id === createStatus)?.title ?? createStatus}</p>
+            </div>
+            <Button className="h-9 px-3" type="button" variant="quiet" onClick={closeCreateTask}>
+              <X size={16} />
+              Fermer
+            </Button>
+          </div>
+          <form className="grid gap-3 xl:grid-cols-[1.2fr_1.5fr_auto_auto_auto_auto]" onSubmit={createTask}>
+            <label className="block space-y-2 text-sm">
+              <span className="font-medium">Etape</span>
+              <select
+                className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                value={createStatus}
+                onChange={(event) => setCreateStatus(event.target.value as WorkStatus)}
+                disabled={!selectedProjectId}
+              >
+                {visibleColumns.map((column) => (
+                  <option key={column.id} value={column.id}>{column.title}</option>
+                ))}
+              </select>
+            </label>
           <label className="block space-y-2 text-sm">
             <span className="font-medium">Titre de la tache</span>
             <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Ex: Preparer le sprint" required minLength={2} disabled={!selectedProjectId} />
@@ -692,8 +758,9 @@ export function KanbanBoard() {
               Ajouter
             </Button>
           </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
+      )}
 
       {editingTask && (
         <Card>
@@ -781,10 +848,7 @@ export function KanbanBoard() {
           {visibleColumns.map((column) => {
             const columnItems = visibleItems.filter((item) => item.status === column.id);
             return (
-              <KanbanColumn key={column.id} column={column}>
-                <div className="mb-3 flex items-center justify-end px-1">
-                  <span className="rounded-md border border-line bg-white/[0.04] px-2 py-0.5 text-xs text-muted">{columnItems.length}</span>
-                </div>
+              <KanbanColumn key={column.id} column={column} itemCount={columnItems.length} onAddTask={openCreateTask}>
                 {columnItems.map((item) => (
                   <DraggableTaskCard key={item.id} item={item} onEdit={startEditingTask} onDelete={isAdmin ? deleteTask : undefined} />
                 ))}
