@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays,
+  CalendarCheck2,
   ChartNoAxesCombined,
   Command,
   Gauge,
@@ -22,6 +23,7 @@ import { cn } from "@/lib/cn";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: Gauge },
+  { to: "/today", label: "Aujourd'hui", icon: CalendarCheck2 },
   { to: "/admin", label: "Admin", icon: ChartNoAxesCombined, adminOnly: true },
   { to: "/projects", label: "Projets", icon: Sparkles },
   { to: "/board", label: "Kanban", icon: KanbanSquare },

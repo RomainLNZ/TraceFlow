@@ -22,6 +22,7 @@ export type DashboardTask = {
   priority: Priority;
   kind: string;
   createdAt?: string;
+  checklist?: Array<{ id: string; text: string; done: boolean }>;
   project: {
     id: string;
     name: string;

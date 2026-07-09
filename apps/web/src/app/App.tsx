@@ -8,6 +8,7 @@ import { AdminDashboard } from "@/features/dashboard/AdminDashboard";
 import { PlaceholderPage } from "@/features/settings/PlaceholderPage";
 
 const UserDashboard = lazy(() => import("@/features/dashboard/UserDashboard").then((module) => ({ default: module.UserDashboard })));
+const TodayPage = lazy(() => import("@/features/today/TodayPage").then((module) => ({ default: module.TodayPage })));
 const KanbanBoard = lazy(() => import("@/features/board/KanbanBoard").then((module) => ({ default: module.KanbanBoard })));
 const ProjectsPage = lazy(() => import("@/features/projects/ProjectsPage").then((module) => ({ default: module.ProjectsPage })));
 
@@ -50,6 +51,7 @@ export function App() {
           }
         >
           <Route index element={<HomeRoute />} />
+          <Route path="today" element={<TodayPage />} />
           <Route path="admin" element={<AdminRoute />} />
           <Route path="projects" element={<ProjectsPage />} />
           <Route path="board" element={<KanbanBoard />} />
