@@ -384,9 +384,11 @@ export function KanbanBoard() {
     setCreateStatus(defaultTaskStatus);
   }
 
-  async function loadProjects() {
-    setIsLoading(true);
-    setError(null);
+  async function loadProjects(options?: { silent?: boolean }) {
+    if (!options?.silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
       const response = await apiFetch(`${API_BASE_URL}/api/projects`);
@@ -400,9 +402,13 @@ export function KanbanBoard() {
       setProjects(loadedProjects);
       setSelectedProjectId((current) => loadedProjects.some((project: Project) => project.id === current) ? current : loadedProjects[0]?.id || "");
     } catch (requestError) {
-      setError(getRequestErrorMessage(requestError, "Impossible de charger les projets."));
+      if (!options?.silent) {
+        setError(getRequestErrorMessage(requestError, "Impossible de charger les projets."));
+      }
     } finally {
-      setIsLoading(false);
+      if (!options?.silent) {
+        setIsLoading(false);
+      }
     }
   }
 
@@ -421,13 +427,15 @@ export function KanbanBoard() {
     }
   }
 
-  async function loadWorkItems(projectId: string) {
+  async function loadWorkItems(projectId: string, options?: { silent?: boolean }) {
     if (!projectId) {
       setItems([]);
       return;
     }
 
-    setError(null);
+    if (!options?.silent) {
+      setError(null);
+    }
 
     try {
       const response = await apiFetch(`${API_BASE_URL}/api/projects/${projectId}/work-items`);
@@ -439,7 +447,9 @@ export function KanbanBoard() {
 
       setItems(payload.data ?? []);
     } catch (requestError) {
-      setError(getRequestErrorMessage(requestError, "Impossible de charger les tâches."));
+      if (!options?.silent) {
+        setError(getRequestErrorMessage(requestError, "Impossible de charger les tâches."));
+      }
     }
   }
 
@@ -658,18 +668,35 @@ export function KanbanBoard() {
 
   useEffect(() => {
     ensureRealtimeConnected();
-    const refreshProjects = () => void loadProjects();
+    const refreshProjects = () => void loadProjects({ silent: true });
     const refreshWorkItems = (payload?: { projectId?: string }) => {
       if (!payload?.projectId || payload.projectId === selectedProjectId) {
-        void loadWorkItems(selectedProjectId);
+        void loadWorkItems(selectedProjectId, { silent: true });
       }
     };
+    const refreshBoard = () => {
+      refreshProjects();
+      refreshWorkItems();
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refreshBoard();
+      }
+    };
+    const refreshInterval = window.setInterval(refreshBoard, 10_000);
 
     realtime.on("projects:changed", refreshProjects);
     realtime.on("work-items:changed", refreshWorkItems);
+    realtime.on("connect", refreshBoard);
+    window.addEventListener("focus", refreshBoard);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
+      window.clearInterval(refreshInterval);
       realtime.off("projects:changed", refreshProjects);
       realtime.off("work-items:changed", refreshWorkItems);
+      realtime.off("connect", refreshBoard);
+      window.removeEventListener("focus", refreshBoard);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [selectedProjectId]);
 

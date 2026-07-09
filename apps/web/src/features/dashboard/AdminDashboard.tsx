@@ -92,13 +92,26 @@ export function AdminDashboard() {
           .catch((requestError) => setError(getRequestErrorMessage(requestError, "Impossible de charger les indicateurs.")));
       }, 120);
     };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+    const refreshInterval = window.setInterval(refresh, 10_000);
 
     realtime.on("projects:changed", refresh);
     realtime.on("work-items:changed", refresh);
+    realtime.on("connect", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       window.clearTimeout(refreshTimer);
+      window.clearInterval(refreshInterval);
       realtime.off("projects:changed", refresh);
       realtime.off("work-items:changed", refresh);
+      realtime.off("connect", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
 

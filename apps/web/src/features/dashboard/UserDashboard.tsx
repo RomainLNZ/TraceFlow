@@ -24,16 +24,22 @@ export function UserDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function refreshDashboard() {
-    setIsLoading(true);
-    setError(null);
+  async function refreshDashboard(options?: { silent?: boolean }) {
+    if (!options?.silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
       setData(await loadDashboardData());
     } catch (requestError) {
-      setError(getRequestErrorMessage(requestError, "Impossible de charger le tableau de bord."));
+      if (!options?.silent) {
+        setError(getRequestErrorMessage(requestError, "Impossible de charger le tableau de bord."));
+      }
     } finally {
-      setIsLoading(false);
+      if (!options?.silent) {
+        setIsLoading(false);
+      }
     }
   }
 
@@ -46,15 +52,28 @@ export function UserDashboard() {
     let refreshTimer: ReturnType<typeof window.setTimeout> | undefined;
     const refresh = () => {
       window.clearTimeout(refreshTimer);
-      refreshTimer = window.setTimeout(() => void refreshDashboard(), 120);
+      refreshTimer = window.setTimeout(() => void refreshDashboard({ silent: true }), 120);
     };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+    const refreshInterval = window.setInterval(refresh, 10_000);
 
     realtime.on("projects:changed", refresh);
     realtime.on("work-items:changed", refresh);
+    realtime.on("connect", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       window.clearTimeout(refreshTimer);
+      window.clearInterval(refreshInterval);
       realtime.off("projects:changed", refresh);
       realtime.off("work-items:changed", refresh);
+      realtime.off("connect", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
 

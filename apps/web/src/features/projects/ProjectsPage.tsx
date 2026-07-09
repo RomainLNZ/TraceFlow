@@ -36,9 +36,11 @@ export function ProjectsPage() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  async function loadProjects() {
-    setIsLoading(true);
-    setError(null);
+  async function loadProjects(options?: { silent?: boolean }) {
+    if (!options?.silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
       const response = await apiFetch(`${API_BASE_URL}/api/projects`);
@@ -50,9 +52,13 @@ export function ProjectsPage() {
 
       setProjects(payload.data ?? []);
     } catch (requestError) {
-      setError(getRequestErrorMessage(requestError, "Impossible de charger les projets."));
+      if (!options?.silent) {
+        setError(getRequestErrorMessage(requestError, "Impossible de charger les projets."));
+      }
     } finally {
-      setIsLoading(false);
+      if (!options?.silent) {
+        setIsLoading(false);
+      }
     }
   }
 
@@ -143,11 +149,24 @@ export function ProjectsPage() {
 
   useEffect(() => {
     ensureRealtimeConnected();
-    const refresh = () => void loadProjects();
+    const refresh = () => void loadProjects({ silent: true });
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+    const refreshInterval = window.setInterval(refresh, 10_000);
 
     realtime.on("projects:changed", refresh);
+    realtime.on("connect", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
+      window.clearInterval(refreshInterval);
       realtime.off("projects:changed", refresh);
+      realtime.off("connect", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, []);
 
