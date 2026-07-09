@@ -829,22 +829,17 @@ export function KanbanBoard() {
       )}
 
       {editingTask && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
           <form
             className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-lg border border-line bg-ink shadow-panel"
             onSubmit={updateTask}
           >
             <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
-              <select
-                className="h-9 max-w-56 rounded-md border border-line bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
-                value={editStatus}
-                onChange={(event) => setEditStatus(event.target.value as WorkStatus)}
-                aria-label="Statut de la tache"
-              >
-                {boardColumns.map((column) => (
-                  <option key={column.id} value={column.id}>{column.title}</option>
-                ))}
-              </select>
+              <div className="min-w-0">
+                <span className="inline-flex max-w-64 items-center rounded-md border border-cyan/30 bg-cyan/10 px-3 py-1.5 text-sm font-medium text-cyan">
+                  {boardColumns.find((column) => column.id === editStatus)?.title ?? editStatus}
+                </span>
+              </div>
               <div className="flex items-center gap-2">
                 {isAdmin && (
                   <Button className="h-9 px-3" type="button" variant="quiet" onClick={() => deleteTask(editingTask)}>
@@ -852,8 +847,9 @@ export function KanbanBoard() {
                     Supprimer
                   </Button>
                 )}
-                <Button className="h-9 w-9 border border-line bg-white/[0.08] px-0 hover:bg-white/[0.14]" type="button" variant="ghost" onClick={cancelEditingTask} aria-label="Fermer la tache" title="Fermer la tache">
+                <Button className="h-9 border border-line bg-white/[0.1] px-3 text-white hover:bg-white/[0.16]" type="button" variant="ghost" onClick={cancelEditingTask} aria-label="Fermer la tache" title="Fermer la tache">
                   <X size={18} />
+                  <span>Fermer</span>
                 </Button>
               </div>
             </div>
@@ -949,6 +945,18 @@ export function KanbanBoard() {
 
               <aside className="space-y-4 border-t border-line bg-white/[0.035] p-5 lg:border-l lg:border-t-0">
                 <h2 className="text-sm font-semibold text-muted">Informations</h2>
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Statut</span>
+                  <select
+                    className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                    value={editStatus}
+                    onChange={(event) => setEditStatus(event.target.value as WorkStatus)}
+                  >
+                    {boardColumns.map((column) => (
+                      <option key={column.id} value={column.id}>{column.title}</option>
+                    ))}
+                  </select>
+                </label>
                 <label className="block space-y-2 text-sm">
                   <span className="font-medium">Priorité</span>
                   <select
