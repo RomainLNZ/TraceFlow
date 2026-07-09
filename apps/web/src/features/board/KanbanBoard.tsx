@@ -1,7 +1,7 @@
 import { DndContext, DragOverlay, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
-import { EyeOff, GripVertical, Pencil, Plus, RotateCcw, Save, Settings2, Trash2, X } from "lucide-react";
-import type { FormEvent } from "react";
+import { AlignLeft, EyeOff, GripVertical, Maximize2, Pencil, Plus, RotateCcw, Save, Settings2, Trash2, X } from "lucide-react";
+import type { ButtonHTMLAttributes, FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { Priority, WorkStatus } from "@qualis/types";
 import { Button } from "@/components/ui/Button";
@@ -49,6 +49,10 @@ type BoardColumn = {
   isVisible: boolean;
 };
 
+type DragHandleProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  ref?: (element: HTMLButtonElement | null) => void;
+};
+
 const priorities: Array<{ value: Priority; label: string }> = [
   { value: "LOW", label: priorityLabels.LOW },
   { value: "MEDIUM", label: priorityLabels.MEDIUM },
@@ -92,24 +96,45 @@ function TaskCard({
   item,
   isDragging = false,
   isOverlay = false,
+  dragHandleProps,
+  onOpen,
   onEdit,
   onDelete
 }: {
   item: WorkItem;
   isDragging?: boolean;
   isOverlay?: boolean;
+  dragHandleProps?: DragHandleProps;
+  onOpen?: ((item: WorkItem) => void) | undefined;
   onEdit?: ((item: WorkItem) => void) | undefined;
   onDelete?: ((item: WorkItem) => void) | undefined;
 }) {
+  const { ref: dragHandleRef, ...dragHandleButtonProps } = dragHandleProps ?? {};
+
   return (
     <article
-      className={`rounded-lg border border-line bg-white/[0.055] p-4 shadow-panel transition sm:p-5 ${
-        isOverlay ? "w-[22rem] cursor-grabbing bg-ink/95" : "cursor-grab hover:-translate-y-0.5 hover:bg-white/[0.075] active:cursor-grabbing"
+      className={`rounded-lg border border-line bg-white/[0.055] p-3 shadow-panel transition ${
+        isOverlay ? "w-[18.5rem] cursor-grabbing bg-ink/95" : "hover:-translate-y-0.5 hover:bg-white/[0.075]"
       } ${isDragging ? "opacity-40" : ""}`}
     >
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <p className="min-w-0 break-words text-base font-semibold leading-6 text-white">{item.title}</p>
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="min-w-0 break-words text-sm font-semibold leading-5 text-white">{item.title}</p>
         <div className="flex shrink-0 items-center gap-1">
+          {onOpen && !isOverlay && (
+            <button
+              className="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-white"
+              type="button"
+              title="Ouvrir la tache"
+              aria-label="Ouvrir la tache"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen(item);
+              }}
+            >
+              <Maximize2 size={14} />
+            </button>
+          )}
           {onEdit && !isOverlay && (
             <button
               className="grid h-7 w-7 place-items-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-white"
@@ -140,17 +165,30 @@ function TaskCard({
               <Trash2 size={14} />
             </button>
           )}
-          <GripVertical className="text-muted" size={16} />
+          {!isOverlay && (
+            <button
+              {...dragHandleButtonProps}
+              ref={dragHandleRef}
+              className="grid h-7 w-7 cursor-grab place-items-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-white active:cursor-grabbing"
+              type="button"
+              title="Deplacer la tache"
+              aria-label="Deplacer la tache"
+            >
+              <GripVertical size={16} />
+            </button>
+          )}
         </div>
       </div>
-      {item.description && <p className="mb-4 whitespace-pre-wrap break-words text-sm leading-6 text-muted">{item.description}</p>}
-      <div className="mb-4 flex items-center gap-2 rounded-md border border-line bg-white/[0.04] px-2.5 py-2 text-sm text-muted">
+      {item.description && (
+        <p className="mb-3 max-h-12 overflow-hidden whitespace-pre-wrap break-words text-xs leading-5 text-muted">{item.description}</p>
+      )}
+      <div className="mb-3 flex items-center gap-2 rounded-md border border-line bg-white/[0.04] px-2 py-1.5 text-xs text-muted">
         <span className="grid h-5 w-5 place-items-center rounded bg-white/[0.06] text-[10px] font-semibold text-white">
           {item.assignee ? `${item.assignee.firstName[0] ?? ""}${item.assignee.lastName[0] ?? ""}`.toUpperCase() : "--"}
         </span>
         <span className="min-w-0 truncate">{item.assignee ? formatUserName(item.assignee) : "Non attribuee"}</span>
       </div>
-      <div className="flex items-center justify-between gap-2 text-sm text-muted">
+      <div className="flex items-center justify-between gap-2 text-xs text-muted">
         <PriorityBadge priority={item.priority} />
         <span className="min-w-0 truncate">{item.kind}</span>
       </div>
@@ -160,21 +198,30 @@ function TaskCard({
 
 function DraggableTaskCard({
   item,
+  onOpen,
   onEdit,
   onDelete
 }: {
   item: WorkItem;
+  onOpen?: ((item: WorkItem) => void) | undefined;
   onEdit?: ((item: WorkItem) => void) | undefined;
   onDelete?: ((item: WorkItem) => void) | undefined;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setActivatorNodeRef, setNodeRef, isDragging } = useDraggable({
     id: item.id,
     data: { status: item.status }
   });
 
   return (
-    <div ref={setNodeRef} {...listeners} {...attributes}>
-      <TaskCard item={item} isDragging={isDragging} onEdit={onEdit} onDelete={onDelete} />
+    <div ref={setNodeRef}>
+      <TaskCard
+        item={item}
+        isDragging={isDragging}
+        dragHandleProps={{ ...listeners, ...attributes, ref: setActivatorNodeRef }}
+        onOpen={onOpen}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
     </div>
   );
 }
@@ -193,7 +240,7 @@ function KanbanColumn({
   const { isOver, setNodeRef } = useDroppable({ id: column.id });
 
   return (
-    <section key={column.id} ref={setNodeRef} className="w-[18.5rem] flex-none rounded-lg border border-line bg-white/[0.08] p-3 sm:w-[20rem]">
+    <section key={column.id} ref={setNodeRef} className="w-[17rem] flex-none rounded-lg border border-line bg-white/[0.08] p-3 sm:w-[18.5rem]">
       <div className="mb-3 flex items-center justify-between gap-3 px-1">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold">{column.title}</h2>
@@ -763,73 +810,107 @@ export function KanbanBoard() {
       )}
 
       {editingTask && (
-        <Card>
-          <form className="space-y-4" onSubmit={updateTask}>
-            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-              <div>
-                <h2 className="text-lg font-semibold">Modifier la tâche</h2>
-                <p className="mt-1 text-sm text-muted">{editingTask.project.name}</p>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+          <form
+            className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-lg border border-line bg-ink shadow-panel"
+            onSubmit={updateTask}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+              <select
+                className="h-9 max-w-56 rounded-md border border-line bg-white/[0.04] px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                value={editStatus}
+                onChange={(event) => setEditStatus(event.target.value as WorkStatus)}
+                aria-label="Statut de la tache"
+              >
+                {boardColumns.map((column) => (
+                  <option key={column.id} value={column.id}>{column.title}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <Button className="h-9 px-3" type="button" variant="quiet" onClick={() => deleteTask(editingTask)}>
+                    <Trash2 size={16} />
+                    Supprimer
+                  </Button>
+                )}
+                <Button className="h-9 w-9 px-0" type="button" variant="ghost" onClick={cancelEditingTask} aria-label="Fermer la tache" title="Fermer la tache">
+                  <X size={18} />
+                </Button>
               </div>
-              <Button className="h-9 px-3" type="button" variant="quiet" onClick={cancelEditingTask}>
-                <X size={16} />
-                Annuler
-              </Button>
             </div>
-            <div className="grid gap-4 xl:grid-cols-[1.1fr_1.4fr_auto_auto_auto]">
-              <label className="block space-y-2 text-sm">
-                <span className="font-medium">Titre</span>
-                <Input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} required minLength={2} />
-              </label>
-              <label className="block space-y-2 text-sm">
-                <span className="font-medium">Description</span>
-                <Input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} />
-              </label>
-              <label className="block space-y-2 text-sm">
-                <span className="font-medium">Statut</span>
-                <select
-                  className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
-                  value={editStatus}
-                  onChange={(event) => setEditStatus(event.target.value as WorkStatus)}
-                >
-                  {boardColumns.map((column) => (
-                    <option key={column.id} value={column.id}>{column.title}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block space-y-2 text-sm">
-                <span className="font-medium">Priorité</span>
-                <select
-                  className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
-                  value={editPriority}
-                  onChange={(event) => setEditPriority(event.target.value as Priority)}
-                >
-                  {priorities.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block space-y-2 text-sm">
-                <span className="font-medium">Attribuée à</span>
-                <select
-                  className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
-                  value={editAssigneeId}
-                  onChange={(event) => setEditAssigneeId(event.target.value)}
-                >
-                  <option value="">Non attribuée</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>{formatUserName(user)}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isSavingEdit}>
-                <Save size={16} />
-                {isSavingEdit ? "Enregistrement..." : "Enregistrer"}
-              </Button>
+
+            <div className="grid max-h-[calc(92vh-4.5rem)] overflow-y-auto lg:grid-cols-[1fr_18rem]">
+              <div className="space-y-6 p-5 sm:p-7">
+                <div className="flex items-start gap-3">
+                  <button className="mt-2 h-4 w-4 shrink-0 rounded-full border border-muted" type="button" aria-label="Tache ouverte" />
+                  <label className="block min-w-0 flex-1 space-y-2">
+                    <span className="sr-only">Titre</span>
+                    <textarea
+                      className="min-h-20 w-full resize-none rounded-lg border border-transparent bg-transparent text-2xl font-semibold leading-8 text-white outline-none transition focus:border-cyan/40 focus:bg-white/[0.04] focus:px-3 focus:py-2 sm:text-3xl"
+                      value={editTitle}
+                      onChange={(event) => setEditTitle(event.target.value)}
+                      required
+                      minLength={2}
+                    />
+                    <span className="block text-sm text-muted">Dans {editingTask.project.name}</span>
+                  </label>
+                </div>
+
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <AlignLeft className="text-muted" size={20} />
+                      <h2 className="text-base font-semibold">Description</h2>
+                    </div>
+                  </div>
+                  <textarea
+                    className="min-h-36 w-full resize-y rounded-lg border border-line bg-white/[0.04] px-3 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-muted focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                    value={editDescription}
+                    onChange={(event) => setEditDescription(event.target.value)}
+                    placeholder="Ajoute les détails utiles, le contexte ou les prochaines actions."
+                  />
+                </section>
+              </div>
+
+              <aside className="space-y-4 border-t border-line bg-white/[0.035] p-5 lg:border-l lg:border-t-0">
+                <h2 className="text-sm font-semibold text-muted">Informations</h2>
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Priorité</span>
+                  <select
+                    className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                    value={editPriority}
+                    onChange={(event) => setEditPriority(event.target.value as Priority)}
+                  >
+                    {priorities.map((item) => (
+                      <option key={item.value} value={item.value}>{item.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block space-y-2 text-sm">
+                  <span className="font-medium">Attribuée à</span>
+                  <select
+                    className="h-11 w-full rounded-lg border border-line bg-ink px-3 text-sm text-white outline-none transition focus:border-cyan/50 focus:ring-4 focus:ring-cyan/10"
+                    value={editAssigneeId}
+                    onChange={(event) => setEditAssigneeId(event.target.value)}
+                  >
+                    <option value="">Non attribuée</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>{formatUserName(user)}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="rounded-lg border border-line bg-white/[0.04] p-3 text-sm text-muted">
+                  <p className="font-medium text-white">Type</p>
+                  <p className="mt-1">{editingTask.kind}</p>
+                </div>
+                <Button className="h-11 w-full" type="submit" disabled={isSavingEdit}>
+                  <Save size={16} />
+                  {isSavingEdit ? "Enregistrement..." : "Enregistrer"}
+                </Button>
+              </aside>
             </div>
           </form>
-        </Card>
+        </div>
       )}
 
       {!isLoading && projects.length === 0 && (
@@ -850,7 +931,13 @@ export function KanbanBoard() {
             return (
               <KanbanColumn key={column.id} column={column} itemCount={columnItems.length} onAddTask={openCreateTask}>
                 {columnItems.map((item) => (
-                  <DraggableTaskCard key={item.id} item={item} onEdit={startEditingTask} onDelete={isAdmin ? deleteTask : undefined} />
+                  <DraggableTaskCard
+                    key={item.id}
+                    item={item}
+                    onOpen={startEditingTask}
+                    onEdit={startEditingTask}
+                    onDelete={isAdmin ? deleteTask : undefined}
+                  />
                 ))}
                 {columnItems.length === 0 && <Card className="p-4 text-sm text-muted">Aucune carte</Card>}
               </KanbanColumn>
