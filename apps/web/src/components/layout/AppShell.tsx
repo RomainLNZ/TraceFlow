@@ -1,6 +1,19 @@
 import { NavLink, Outlet } from "react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, ChartNoAxesCombined, Command, Gauge, KanbanSquare, LogOut, Settings, Sparkles, Users } from "lucide-react";
+import {
+  CalendarDays,
+  ChartNoAxesCombined,
+  Command,
+  Gauge,
+  KanbanSquare,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  Sparkles,
+  Users
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -17,11 +30,18 @@ const nav = [
   { to: "/settings", label: "Parametres", icon: Settings }
 ];
 
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "traceflow.sidebar.collapsed";
+
 export function AppShell() {
   const navigate = useNavigate();
   const user = getSessionUser();
   const initials = user ? `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase() : "U";
   const visibleNav = nav.filter((item) => !item.adminOnly || user?.role === "ADMIN");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true");
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
 
   function logout() {
     clearSession();
@@ -30,12 +50,17 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen">
-      <aside className="fixed inset-y-4 left-4 z-30 hidden w-64 rounded-lg border border-line bg-ink/70 p-3 shadow-panel backdrop-blur-xl lg:block">
-        <div className="mb-8 flex items-center gap-3 px-2 pt-2">
+      <aside
+        className={cn(
+          "fixed inset-y-4 left-4 z-30 hidden rounded-lg border border-line bg-ink/70 p-3 shadow-panel backdrop-blur-xl transition-[width] duration-200 lg:block",
+          isSidebarCollapsed ? "w-20" : "w-64"
+        )}
+      >
+        <div className={cn("mb-8 flex items-center gap-3 px-2 pt-2", isSidebarCollapsed && "justify-center px-0")}>
           <div className="grid h-10 w-10 place-items-center rounded-lg bg-white text-ink">
             <KanbanSquare size={18} />
           </div>
-          <div>
+          <div className={cn(isSidebarCollapsed && "hidden")}>
             <p className="text-sm font-semibold">TraceFlow</p>
             <p className="max-w-40 text-[11px] leading-4 text-muted">Transformez vos idées en projets maîtrisés.</p>
           </div>
@@ -45,26 +70,43 @@ export function AppShell() {
             <NavLink
               key={item.to}
               to={item.to}
+              title={isSidebarCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted transition hover:bg-white/[0.06] hover:text-white",
+                  isSidebarCollapsed && "justify-center px-0",
                   isActive && "bg-white/[0.08] text-white"
                 )
               }
             >
               <item.icon size={17} />
-              {item.label}
+              <span className={cn(isSidebarCollapsed && "sr-only")}>{item.label}</span>
             </NavLink>
           ))}
         </nav>
       </aside>
 
-      <header className="sticky top-0 z-20 border-b border-line bg-ink/70 backdrop-blur-xl lg:ml-72">
+      <header
+        className={cn(
+          "sticky top-0 z-20 border-b border-line bg-ink/70 backdrop-blur-xl transition-[margin] duration-200",
+          isSidebarCollapsed ? "lg:ml-28" : "lg:ml-72"
+        )}
+      >
         <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <div className="lg:hidden grid h-9 w-9 place-items-center rounded-lg bg-white text-ink">
               <KanbanSquare size={17} />
             </div>
+            <Button
+              variant="ghost"
+              className="hidden h-9 w-9 px-0 lg:inline-flex"
+              type="button"
+              onClick={() => setIsSidebarCollapsed((value) => !value)}
+              aria-label={isSidebarCollapsed ? "Ouvrir le menu" : "Fermer le menu"}
+              title={isSidebarCollapsed ? "Ouvrir le menu" : "Fermer le menu"}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </Button>
             <button className="hidden h-10 w-[min(28rem,42vw)] items-center gap-3 rounded-lg border border-line bg-white/[0.04] px-3 text-left text-sm text-muted transition hover:bg-white/[0.07] md:flex">
               <Command size={16} />
               Rechercher utilisateurs, taches, documents...
@@ -84,7 +126,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="px-4 py-6 sm:px-6 lg:ml-72 lg:px-8">
+      <main className={cn("px-4 py-6 transition-[margin] duration-200 sm:px-6 lg:px-8", isSidebarCollapsed ? "lg:ml-28" : "lg:ml-72")}>
         <AnimatePresence mode="wait">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.28 }}>
             <Outlet />

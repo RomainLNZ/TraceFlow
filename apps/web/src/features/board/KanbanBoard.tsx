@@ -103,12 +103,12 @@ function TaskCard({
 }) {
   return (
     <article
-      className={`rounded-lg border border-line bg-white/[0.045] p-4 shadow-panel transition ${
-        isOverlay ? "w-[18rem] cursor-grabbing bg-ink/95" : "cursor-grab hover:-translate-y-0.5 hover:bg-white/[0.07] active:cursor-grabbing"
+      className={`rounded-lg border border-line bg-white/[0.055] p-4 shadow-panel transition sm:p-5 ${
+        isOverlay ? "w-[22rem] cursor-grabbing bg-ink/95" : "cursor-grab hover:-translate-y-0.5 hover:bg-white/[0.075] active:cursor-grabbing"
       } ${isDragging ? "opacity-40" : ""}`}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
-        <p className="text-sm font-semibold leading-5">{item.title}</p>
+        <p className="min-w-0 break-words text-base font-semibold leading-6 text-white">{item.title}</p>
         <div className="flex shrink-0 items-center gap-1">
           {onEdit && !isOverlay && (
             <button
@@ -143,16 +143,16 @@ function TaskCard({
           <GripVertical className="text-muted" size={16} />
         </div>
       </div>
-      {item.description && <p className="mb-4 text-xs leading-5 text-muted">{item.description}</p>}
-      <div className="mb-4 flex items-center gap-2 rounded-md border border-line bg-white/[0.035] px-2 py-1.5 text-xs text-muted">
+      {item.description && <p className="mb-4 whitespace-pre-wrap break-words text-sm leading-6 text-muted">{item.description}</p>}
+      <div className="mb-4 flex items-center gap-2 rounded-md border border-line bg-white/[0.04] px-2.5 py-2 text-sm text-muted">
         <span className="grid h-5 w-5 place-items-center rounded bg-white/[0.06] text-[10px] font-semibold text-white">
           {item.assignee ? `${item.assignee.firstName[0] ?? ""}${item.assignee.lastName[0] ?? ""}`.toUpperCase() : "--"}
         </span>
-        {item.assignee ? formatUserName(item.assignee) : "Non attribuee"}
+        <span className="min-w-0 truncate">{item.assignee ? formatUserName(item.assignee) : "Non attribuee"}</span>
       </div>
-      <div className="flex items-center justify-between gap-2 text-xs text-muted">
+      <div className="flex items-center justify-between gap-2 text-sm text-muted">
         <PriorityBadge priority={item.priority} />
-        <span>{item.kind}</span>
+        <span className="min-w-0 truncate">{item.kind}</span>
       </div>
     </article>
   );
@@ -183,11 +183,11 @@ function KanbanColumn({ column, children }: { column: BoardColumn; children: Rea
   const { isOver, setNodeRef } = useDroppable({ id: column.id });
 
   return (
-    <section key={column.id} ref={setNodeRef} className="w-[18rem] flex-none">
+    <section key={column.id} ref={setNodeRef} className="w-[21rem] flex-none sm:w-[23rem]">
       <div className="mb-3 flex items-center justify-between px-1">
         <h2 className="text-sm font-semibold">{column.title}</h2>
       </div>
-      <div className={`min-h-32 space-y-3 rounded-lg transition ${isOver ? "bg-cyan/10 ring-2 ring-cyan/30" : ""}`}>
+      <div className={`min-h-32 space-y-4 rounded-lg transition ${isOver ? "bg-cyan/10 ring-2 ring-cyan/30" : ""}`}>
         {children}
       </div>
     </section>
@@ -777,7 +777,7 @@ export function KanbanBoard() {
       )}
 
       <DndContext onDragStart={handleDragStart} onDragCancel={() => setActiveTaskId(null)} onDragEnd={handleDragEnd}>
-        <div className="scrollbar-thin -mx-4 flex gap-4 overflow-x-auto px-4 pb-4">
+        <div className="scrollbar-thin -mx-4 flex gap-5 overflow-x-auto px-4 pb-4 lg:-mx-2 lg:px-2">
           {visibleColumns.map((column) => {
             const columnItems = visibleItems.filter((item) => item.status === column.id);
             return (
